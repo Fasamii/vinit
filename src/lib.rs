@@ -67,52 +67,6 @@ impl<'a> BaseConfig<'a> {
     }
 }
 
-pub struct SwapchainConfig {
-    min_image_count: u32,
-    image_format: vk::Format,
-    image_sharing_mode: vk::SharingMode,
-    color_space: vk::ColorSpaceKHR,
-    present_mode: vk::PresentModeKHR,
-    image_usage: vk::ImageUsageFlags,
-    transforms: vk::SurfaceTransformFlagsKHR,
-    composite_alpha: vk::CompositeAlphaFlagsKHR,
-    array_layers: u32,
-    extent: vk::Extent2D,
-    clipped: bool,
-}
-
-impl Default for SwapchainConfig {
-    fn default() -> Self {
-        Self {
-            min_image_count: todo!(
-                "Try to acquire min img count supported by the swapchain and set that + 1"
-            ),
-            image_format: todo!("Set most common supported"),
-            image_sharing_mode: todo!("Set most common supported"),
-            color_space: todo!("same"),
-            present_mode: todo!("same"),
-            image_usage: todo!("same"),
-            transforms: todo!("same"),
-            composite_alpha: todo!("same"),
-            array_layers: todo!("same"),
-            extent: todo!("same"),
-            clipped: todo!("same"),
-        }
-    }
-}
-
-impl SwapchainConfig {
-    pub fn min_img_count(mut self, count: u32) -> Self {
-        self.min_image_count = count;
-        self
-    }
-
-    pub fn img_format(mut self, format: vk::Format) -> Self {
-        self.image_format = format;
-        self
-    }
-}
-
 #[derive(Clone, Copy)]
 pub struct QueueFamilies<T> {
     pub graphics: T,
@@ -362,3 +316,50 @@ impl PhysicalDeviceInfo {
         score
     }
 }
+
+pub struct SwapchainConfig {
+    min_image_count: u32,
+    image_format: vk::Format,
+    image_sharing_mode: vk::SharingMode,
+    color_space: vk::ColorSpaceKHR,
+    present_mode: vk::PresentModeKHR,
+    image_usage: vk::ImageUsageFlags,
+    transforms: vk::SurfaceTransformFlagsKHR,
+    composite_alpha: vk::CompositeAlphaFlagsKHR,
+    array_layers: u32,
+    extent: vk::Extent2D,
+    clipped: bool,
+}
+
+impl Default for SwapchainConfig {
+    fn default() -> Self {
+        Self {
+            min_image_count: todo!(
+                "Try to acquire min img count supported by the swapchain and set that + 1"
+            ),
+            image_format: todo!("Set most common supported"),
+            image_sharing_mode: todo!("Set most common supported"),
+            color_space: todo!("same"),
+            present_mode: todo!("same"),
+            image_usage: todo!("same"),
+            transforms: todo!("same"),
+            composite_alpha: todo!("same"),
+            array_layers: todo!("same"),
+            extent: todo!("same"),
+            clipped: todo!("same"),
+        }
+    }
+}
+
+impl SwapchainConfig {
+    pub fn min_img_count(mut self, count: u32) -> Self {
+        self.min_image_count = count;
+        self
+    }
+
+    pub fn img_format(mut self, format: vk::Format) -> Self {
+        self.image_format = format;
+        self
+    }
+}
+
