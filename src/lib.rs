@@ -1,11 +1,18 @@
 #![allow(unused)]
 #![allow(dead_code)]
 
-use ash::{self, ext::queue_family_foreign, khr, vk};
+use ash::{self, khr, vk};
 use std::ffi::CStr;
 
 pub struct Base {
+    _entry: ash::Entry,
+    instance: ash::Instance,
     physical_device_info: PhysicalDeviceInfo,
+    device: ash::Device,
+    surface: Option<vk::SurfaceKHR>,
+    surface_loader: Option<khr::surface::Instance>,
+    swapchain: Option<SwapchainInfo>,
+    swapchain_loader: Option<khr::swapchain::Device>,
 }
 
 impl Base {}
@@ -69,7 +76,7 @@ impl<'a> BaseConfig<'a> {
 }
 
 #[derive(Clone, Copy)]
-pub struct QueueFamilies<T> {
+pub struct Families<T> {
     pub graphics: T,
     pub compute: T,
     pub transfer: T,
@@ -77,7 +84,7 @@ pub struct QueueFamilies<T> {
     pub protected: T,
 }
 
-impl Default for QueueFamilies<bool> {
+impl Default for Families<bool> {
     fn default() -> Self {
         Self {
             graphics: false,
@@ -89,7 +96,7 @@ impl Default for QueueFamilies<bool> {
     }
 }
 
-impl<T> Default for QueueFamilies<Option<T>> {
+impl<T> Default for Families<Option<T>> {
     fn default() -> Self {
         Self {
             graphics: None,
@@ -100,6 +107,9 @@ impl<T> Default for QueueFamilies<Option<T>> {
         }
     }
 }
+
+
+type QueueFamilies<T> = Families<T>;
 
 impl QueueFamilies<Option<u32>> {
     fn query_queues(&mut self, instance: &ash::Instance, physical_device: vk::PhysicalDevice) {
@@ -131,6 +141,10 @@ impl QueueFamilies<Option<u32>> {
         }
     }
 }
+
+type QueueHandles<T> = Families<T>;
+
+impl QueueHandles<vk::Queue> {}
 
 pub struct PhysicalDeviceSelector {
     prefer_best: bool,
@@ -363,4 +377,19 @@ impl SwapchainConfig {
         self.image_format = format;
         self
     }
+}
+
+impl SwapchainConfig {
+    fn build() -> SwapchainInfo {
+        todo!()
+    }
+}
+
+pub struct SwapchainInfo {
+    pub swapchain: vk::SwapchainKHR,
+    pub images: Vec<vk::Image>,
+    pub image_views: Vec<vk::ImageView>,
+    pub format: vk::Format,
+    pub extent: vk::Extent2D,
+    pub image_count: u32,
 }
