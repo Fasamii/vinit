@@ -4,13 +4,11 @@
 use ash::{self, khr, vk};
 use std::ffi::CStr;
 
-#[derive(Debug)]
-pub struct Base {}
-impl Base {
-    pub fn new(config: BaseConfig) -> Self {
-        Self {}
-    }
+pub struct Base {
+    physical_device_info: PhysicalDeviceInfo,
 }
+
+impl Base {}
 
 pub struct BaseConfig<'a> {
     app_info: vk::ApplicationInfo<'a>,
@@ -29,6 +27,10 @@ impl Default for BaseConfig<'_> {
 }
 
 impl<'a> BaseConfig<'a> {
+    pub fn create(mut self) -> Base {
+        todo!("")
+    }
+
     pub fn with_app_info(mut self, name: &'a CStr, major: u32, minor: u32, patch: u32) -> Self {
         self.app_info = vk::ApplicationInfo::default()
             .application_name(name)
@@ -133,8 +135,8 @@ pub struct PhysicalDeviceSelector {
     prefer_best: bool,
     require_discrete: bool,
     required_queues: QueueFamilies<bool>,
-    properties: Option<vk::PhysicalDeviceProperties>,
-    features: Option<vk::PhysicalDeviceFeatures>,
+    properties: vk::PhysicalDeviceProperties,
+    features: vk::PhysicalDeviceFeatures,
 }
 
 impl Default for PhysicalDeviceSelector {
@@ -151,18 +153,84 @@ impl Default for PhysicalDeviceSelector {
 
 impl PhysicalDeviceSelector {
     pub fn require_graphics_queue(mut self) -> Self {
-        todo!()
+        self.required_queues.graphics = true;
+        self
     }
     pub fn require_compute_queue(mut self) -> Self {
-        todo!()
+        self.required_queues.compute = true;
+        self
     }
     pub fn require_transfer_queue(mut self) -> Self {
-        todo!()
+        self.required_queues.transfer = true;
+        self
     }
     pub fn require_sparse_queue(mut self) -> Self {
-        todo!()
+        self.required_queues.sparse = true;
+        self
     }
     pub fn require_protected_queue(mut self) -> Self {
-        todo!()
+        self.required_queues.protected = true;
+        self
+    }
+    pub fn prefer_bset(mut self, prefer: bool) -> Self {
+        self.prefer_best = prefer;
+        self
+    }
+    pub fn require_discrete(mut self, require: bool) -> Self {
+        self.require_discrete = require;
+        self
+    }
+
+    pub fn require_properties(mut self, properties: vk::PhysicalDeviceProperties) -> Self {
+        self.properties = properties;
+        self
+    }
+    pub fn require_features(mut self, features: vk::PhysicalDeviceFeatures) -> Self {
+        self.features = features;
+        self
+    }
+}
+
+impl PhysicalDeviceSelector {
+    fn select(&self, instance: &ash::Instance) -> PhysicalDeviceInfo {
+        todo!("Implement that")
+    }
+}
+
+pub struct PhysicalDeviceInfo {
+    pub physical_device: vk::PhysicalDevice,
+    pub properties: vk::PhysicalDeviceProperties,
+    pub features: vk::PhysicalDeviceFeatures,
+    pub memory_properties: vk::PhysicalDeviceMemoryProperties,
+}
+
+impl PhysicalDeviceInfo {
+    fn new(physical_device: vk::PhysicalDevice, instance: &ash::Instance) -> Self {
+        Self {
+            physical_device,
+            properties: Self::get_properties(instance, physical_device),
+            features: Self::get_features(instance, physical_device),
+            memory_properties: Self::get_memory(instance, physical_device),
+        }
+    }
+
+    fn get_properties(
+        instance: &ash::Instance,
+        physical_device: vk::PhysicalDevice,
+    ) -> vk::PhysicalDeviceProperties {
+        unsafe { instance.get_physical_device_properties(physical_device) }
+    }
+    fn get_features(
+        instance: &ash::Instance,
+        physical_device: vk::PhysicalDevice,
+    ) -> vk::PhysicalDeviceFeatures {
+        unsafe { instance.get_physical_device_features(physical_device) }
+    }
+
+    fn get_memory(
+        instance: &ash::Instance,
+        physical_device: vk::PhysicalDevice,
+    ) -> vk::PhysicalDeviceMemoryProperties {
+        unsafe { instance.get_physical_device_memory_properties(physical_device) }
     }
 }

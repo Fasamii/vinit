@@ -1,7 +1,7 @@
 use ash::vk;
 
 fn main() {
-    let config = vinit::BaseConfig::default()
+    let base = vinit::BaseConfig::default()
         .with_app_info(c"TEST", 0, 0, 0)
         .with_device(|physical_device_selector| {
             physical_device_selector
@@ -13,8 +13,6 @@ fn main() {
             swapchain_config
                 .min_img_count(12)
                 .img_format(vk::Format::R8G8B8A8_SRGB)
-        });
-
-    let base = vinit::Base::new(config);
-    println!("{base:?}");
+        })
+        .create();
 }
