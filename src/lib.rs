@@ -272,7 +272,7 @@ impl PhysicalDeviceInfo {
         queue_family_indices.query_queues(instance, physical_device);
         Self {
             physical_device,
-            queue_families_indices: Default::default(),
+            queue_families_indices: queue_family_indices,
             properties: Self::get_properties(&instance, physical_device),
             features: Self::get_features(&instance, physical_device),
             memory_properties: Self::get_memory(&instance, physical_device),
