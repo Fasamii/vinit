@@ -14,7 +14,7 @@ pub struct BaseConfig<'a> {
     app_info: vk::ApplicationInfo<'a>,
     instance_extensions: Vec<&'a CStr>,
     physical_device: PhysicalDeviceSelector,
-    swapchain: SwapchainConfig,
+    swapchain: Option<SwapchainConfig>,
 }
 
 impl Default for BaseConfig<'_> {
@@ -39,7 +39,8 @@ impl<'a> BaseConfig<'a> {
         let instance_create_info = vk::InstanceCreateInfo::default()
             .application_info(&self.app_info)
             .enabled_extension_names(&instance_extensions_raw);
-        let instance = unsafe { entry.create_instance(&instance_create_info, None) };
+        let instance = unsafe { entry.create_instance(&instance_create_info, None).unwrap() };
+        let physical_device = self.physical_device.select(&instance);
         todo!();
     }
 }
@@ -62,7 +63,7 @@ impl<'a> BaseConfig<'a> {
         mut self,
         swapchain_config: fn(SwapchainConfig) -> SwapchainConfig,
     ) -> Self {
-        self.swapchain = swapchain_config(Default::default());
+        self.swapchain = Some(swapchain_config(Default::default()));
         self
     }
 }
@@ -334,19 +335,20 @@ pub struct SwapchainConfig {
 impl Default for SwapchainConfig {
     fn default() -> Self {
         Self {
-            min_image_count: todo!(
-                "Try to acquire min img count supported by the swapchain and set that + 1"
-            ),
-            image_format: todo!("Set most common supported"),
-            image_sharing_mode: todo!("Set most common supported"),
-            color_space: todo!("same"),
-            present_mode: todo!("same"),
-            image_usage: todo!("same"),
-            transforms: todo!("same"),
-            composite_alpha: todo!("same"),
-            array_layers: todo!("same"),
-            extent: todo!("same"),
-            clipped: todo!("same"),
+            min_image_count: 2,
+            image_format: vk::Format::R8G8B8A8_SRGB,
+            image_sharing_mode: vk::SharingMode::EXCLUSIVE,
+            color_space: vk::ColorSpaceKHR::SRGB_NONLINEAR,
+            present_mode: vk::PresentModeKHR::FIFO,
+            image_usage: vk::ImageUsageFlags::COLOR_ATTACHMENT,
+            transforms: vk::SurfaceTransformFlagsKHR::IDENTITY,
+            composite_alpha: vk::CompositeAlphaFlagsKHR::OPAQUE,
+            array_layers: 1,
+            extent: vk::Extent2D {
+                width: 1920,
+                height: 1080,
+            },
+            clipped: true,
         }
     }
 }
@@ -362,4 +364,3 @@ impl SwapchainConfig {
         self
     }
 }
-
