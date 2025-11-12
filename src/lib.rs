@@ -144,7 +144,11 @@ impl QueueFamilies<Option<u32>> {
 
 type QueueHandles<T> = Families<T>;
 
-impl QueueHandles<vk::Queue> {}
+impl QueueHandles<vk::Queue> {
+    fn new() -> Self {
+
+    }
+}
 
 pub struct PhysicalDeviceSelector {
     prefer_best: bool,
