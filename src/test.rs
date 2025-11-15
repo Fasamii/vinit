@@ -1,8 +1,10 @@
 use ash::vk;
 
 fn main() {
+    // TODO: consider moving require_graphics_queue and synonyms into with_queue or
+    // with_command_pool in the way that required queues are abstracted into usage of that queues
     let _base = vinit::BaseConfig::default()
-        .with_app_info(c"TEST", 0, 0, 0)
+        .with_app_info(c"TEST", (0, 0, 0))
         .with_device(|physical_device_selector| {
             physical_device_selector
                 .require_graphics_queue()

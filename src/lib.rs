@@ -58,10 +58,10 @@ impl<'a> BaseConfig<'a> {
 }
 
 impl<'a> BaseConfig<'a> {
-    pub fn with_app_info(mut self, name: &'a CStr, major: u32, minor: u32, patch: u32) -> Self {
+    pub fn with_app_info(mut self, name: &'a CStr, version: (u32, u32, u32)) -> Self {
         self.app_info = vk::ApplicationInfo::default()
             .application_name(name)
-            .application_version(vk::make_api_version(0, major, minor, patch));
+            .application_version(vk::make_api_version(0, version.0, version.1, version.2));
         self
     }
     pub fn with_device(
