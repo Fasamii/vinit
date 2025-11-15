@@ -7,8 +7,13 @@ use std::ffi::CStr;
 pub struct Base {
     _entry: ash::Entry,
     instance: ash::Instance,
-    physical_device_info: PhysicalDeviceInfo,
+
+    // TODO: Make PhysicalDeviceInfo part of DeviceInfo struct, create that.
     device: ash::Device,
+    physical_device_info: PhysicalDeviceInfo,
+
+    // TODO: Make these part of SwapchainInfo Struct instead of having multiple fields, that would
+    // help in compile time resolution if these can be accessed or not.
     surface: Option<vk::SurfaceKHR>,
     surface_loader: Option<khr::surface::Instance>,
     swapchain: Option<SwapchainInfo>,
@@ -108,7 +113,6 @@ impl<T> Default for Families<Option<T>> {
     }
 }
 
-
 type QueueFamilies<T> = Families<T>;
 
 impl QueueFamilies<Option<u32>> {
@@ -145,9 +149,7 @@ impl QueueFamilies<Option<u32>> {
 type QueueHandles<T> = Families<T>;
 
 impl QueueHandles<vk::Queue> {
-    fn new() -> Self {
-
-    }
+    fn new() -> Self {}
 }
 
 pub struct PhysicalDeviceSelector {
