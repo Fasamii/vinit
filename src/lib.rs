@@ -85,7 +85,9 @@ impl BaseConfig {
         let physical_device = self
             .physical_device
             .require_extensions(self.device_extensions)
-            .select(&instance);
+            .select(&instance)
+            .unwrap();
+        println!("{:?}", physical_device);
         todo!();
     }
 }
@@ -433,6 +435,17 @@ impl PhysicalDeviceInfo {
             score += 50;
         }
         score
+    }
+}
+
+impl std::fmt::Debug for PhysicalDeviceInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "PhysicalDeviceInfo (\x1b[38;5;3m{:?}\x1b[0m) - \"\x1b[38;5;2m{:?}\x1b[0m\"",
+            self.properties.device_type,
+            unsafe { CStr::from_ptr(self.properties.device_name.as_ptr()) }
+        )
     }
 }
 
