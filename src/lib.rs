@@ -2,66 +2,82 @@
 #![allow(dead_code)]
 
 use ash::{self, khr, vk};
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
+
+pub struct Unset;
+pub struct Set;
 
 pub struct Base {
     _entry: ash::Entry,
     instance: ash::Instance,
-
-    // TODO: Make PhysicalDeviceInfo part of DeviceInfo struct, create that.
-    device: ash::Device,
-    physical_device_info: PhysicalDeviceInfo,
-
-    // TODO: Make these part of SwapchainInfo Struct instead of having multiple fields, that would
-    // help in compile time resolution if these can be accessed or not.
-    surface: Option<vk::SurfaceKHR>,
-    surface_loader: Option<khr::surface::Instance>,
-    swapchain: Option<SwapchainInfo>,
-    swapchain_loader: Option<khr::swapchain::Device>,
+    device: DeviceInfo,
 }
 
 impl Base {}
 
-pub struct BaseConfig<'a> {
-    app_info: vk::ApplicationInfo<'a>,
-    instance_extensions: Vec<&'a CStr>,
+pub struct BaseConfig {
+    app_name: CString,
+    version: (u32, u32, u32),
+    instance_extensions: Vec<CString>,
+    device_extensions: Vec<CString>,
     physical_device: PhysicalDeviceSelector,
     swapchain: Option<SwapchainConfig>,
 }
 
-impl Default for BaseConfig<'_> {
+impl Default for BaseConfig {
     fn default() -> Self {
         Self {
-            app_info: Default::default(),
+            app_name: CString::from(c"No Name"),
+            version: (0, 0, 0),
             instance_extensions: Default::default(),
+            device_extensions: Default::default(),
             physical_device: Default::default(),
             swapchain: Default::default(),
         }
     }
 }
 
-impl<'a> BaseConfig<'a> {
+impl BaseConfig {
     pub fn build(mut self) -> Base {
         let entry = unsafe { ash::Entry::load().expect("Failed to load Entry") };
+        let app_info = vk::ApplicationInfo::default()
+            .application_name(<&CStr>::from(&self.app_name))
+            .application_version(vk::make_api_version(
+                0,
+                self.version.0,
+                self.version.1,
+                self.version.2,
+            ));
         let instance_extensions_raw: Vec<*const i8> = self
             .instance_extensions
             .iter()
             .map(|name| name.as_ptr())
             .collect();
         let instance_create_info = vk::InstanceCreateInfo::default()
-            .application_info(&self.app_info)
+            .application_info(&app_info)
             .enabled_extension_names(&instance_extensions_raw);
         let instance = unsafe { entry.create_instance(&instance_create_info, None).unwrap() };
+        // TODO: insert required queue families here
         let physical_device = self.physical_device.select(&instance);
         todo!();
     }
 }
 
-impl<'a> BaseConfig<'a> {
-    pub fn with_app_info(mut self, name: &'a CStr, version: (u32, u32, u32)) -> Self {
-        self.app_info = vk::ApplicationInfo::default()
-            .application_name(name)
-            .application_version(vk::make_api_version(0, version.0, version.1, version.2));
+impl BaseConfig {
+    pub fn app_name(mut self, name: CString) -> Self {
+        self.app_name = name;
+        self
+    }
+    pub fn app_version(mut self, version: (u32, u32, u32)) -> Self {
+        self.version = version;
+        self
+    }
+    pub fn instance_extensions(mut self, extensions: Vec<CString>) -> Self {
+        self.instance_extensions = extensions;
+        self
+    }
+    pub fn device_extensions(mut self, extensions: Vec<CString>) -> Self {
+        self.device_extensions = extensions;
         self
     }
     pub fn with_device(
@@ -146,10 +162,28 @@ impl QueueFamilies<Option<u32>> {
     }
 }
 
+// TODO: consider removing T and hardcoding vk::Queue
 type QueueHandles<T> = Families<T>;
 
 impl QueueHandles<vk::Queue> {
-    fn new() -> Self {}
+    fn new() -> Self {
+        todo!()
+    }
+}
+
+pub struct DeviceInfo {
+    physical_info: PhysicalDeviceInfo,
+    queue_handles: QueueHandles<vk::Queue>,
+}
+
+impl DeviceInfo {
+    fn new(physical_device_info: PhysicalDeviceInfo) -> Self {
+        todo!("Implement creation of DeviceInfo");
+        Self {
+            physical_info: physical_device_info,
+            queue_handles: QueueHandles::new(),
+        }
+    }
 }
 
 pub struct PhysicalDeviceSelector {
