@@ -1,19 +1,43 @@
 #![allow(unused)]
 #![allow(dead_code)]
 
+mod mass;
+
 use ash::{self, khr, vk};
+use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 
-pub struct Unset;
-pub struct Set;
+pub trait Store<T> {
+    type Stored;
+}
 
-pub struct Base {
+pub struct Present;
+impl<T> Store<T> for Present {
+    type Stored = T;
+}
+
+pub struct Absent;
+impl<T> Store<T> for Absent {
+    type Stored = ();
+}
+
+type Field<S, T> = <S as Store<T>>::Stored;
+
+pub struct Base<S: Store<SwapchainInfo>> {
     _entry: ash::Entry,
     instance: ash::Instance,
     device: DeviceInfo,
+    swapchain: Field<S, SwapchainInfo>,
 }
 
-impl Base {}
+impl<S: Store<SwapchainInfo>> Base<S> {}
+
+impl Base<Absent> {
+    fn create_swapchain() -> () {}
+    pub fn is_present(&self) {
+        println!("Swapchain is present {:?}", self.swapchain);
+    }
+}
 
 pub struct BaseConfig {
     app_name: CString,
@@ -38,7 +62,7 @@ impl Default for BaseConfig {
 }
 
 impl BaseConfig {
-    pub fn build(mut self) -> Base {
+    pub fn build(mut self) -> Base<Present> {
         let entry = unsafe { ash::Entry::load().expect("Failed to load Entry") };
         let app_info = vk::ApplicationInfo::default()
             .application_name(<&CStr>::from(&self.app_name))
@@ -58,25 +82,28 @@ impl BaseConfig {
             .enabled_extension_names(&instance_extensions_raw);
         let instance = unsafe { entry.create_instance(&instance_create_info, None).unwrap() };
         // TODO: insert required queue families here
-        let physical_device = self.physical_device.select(&instance);
+        let physical_device = self
+            .physical_device
+            .require_extensions(self.device_extensions)
+            .select(&instance);
         todo!();
     }
 }
 
 impl BaseConfig {
-    pub fn app_name(mut self, name: CString) -> Self {
+    pub fn with_app_name(mut self, name: CString) -> Self {
         self.app_name = name;
         self
     }
-    pub fn app_version(mut self, version: (u32, u32, u32)) -> Self {
+    pub fn with_app_version(mut self, version: (u32, u32, u32)) -> Self {
         self.version = version;
         self
     }
-    pub fn instance_extensions(mut self, extensions: Vec<CString>) -> Self {
+    pub fn with_instance_extensions(mut self, extensions: Vec<CString>) -> Self {
         self.instance_extensions = extensions;
         self
     }
-    pub fn device_extensions(mut self, extensions: Vec<CString>) -> Self {
+    pub fn with_device_extensions(mut self, extensions: Vec<CString>) -> Self {
         self.device_extensions = extensions;
         self
     }
@@ -190,8 +217,9 @@ pub struct PhysicalDeviceSelector {
     prefer_best: bool,
     require_discrete: bool,
     required_queues: QueueFamilies<bool>,
-    properties: vk::PhysicalDeviceProperties,
-    features: vk::PhysicalDeviceFeatures,
+    required_properties: vk::PhysicalDeviceProperties,
+    required_features: vk::PhysicalDeviceFeatures,
+    required_extensions: Vec<CString>,
 }
 
 impl Default for PhysicalDeviceSelector {
@@ -200,9 +228,17 @@ impl Default for PhysicalDeviceSelector {
             prefer_best: true,
             require_discrete: false,
             required_queues: Default::default(),
-            properties: Default::default(),
-            features: Default::default(),
+            required_properties: Default::default(),
+            required_features: Default::default(),
+            required_extensions: Default::default(),
         }
+    }
+}
+
+impl PhysicalDeviceSelector {
+    fn require_extensions(mut self, extensions: Vec<CString>) -> Self {
+        self.required_extensions = extensions;
+        self
     }
 }
 
@@ -235,13 +271,12 @@ impl PhysicalDeviceSelector {
         self.require_discrete = require;
         self
     }
-
     pub fn require_properties(mut self, properties: vk::PhysicalDeviceProperties) -> Self {
-        self.properties = properties;
+        self.required_properties = properties;
         self
     }
     pub fn require_features(mut self, features: vk::PhysicalDeviceFeatures) -> Self {
-        self.features = features;
+        self.required_features = features;
         self
     }
 }
@@ -255,8 +290,9 @@ impl PhysicalDeviceSelector {
             .map(|physical_device| PhysicalDeviceInfo::new(physical_device, instance))
             .filter(|info| !self.require_discrete || info.is_discrete())
             .filter(|info| info.satisfies_families(self.required_queues))
-            .filter(|info| info.satisfies_properties(self.properties))
-            .filter(|info| info.satisfies_features(self.features))
+            .filter(|info| info.satisfies_extensions(&self.required_extensions))
+            .filter(|info| info.satisfies_properties(self.required_properties))
+            .filter(|info| info.satisfies_features(self.required_features))
             .collect();
 
         if self.prefer_best {
@@ -273,6 +309,7 @@ pub struct PhysicalDeviceInfo {
     pub properties: vk::PhysicalDeviceProperties,
     pub features: vk::PhysicalDeviceFeatures,
     pub memory_properties: vk::PhysicalDeviceMemoryProperties,
+    pub extensions: Vec<vk::ExtensionProperties>,
 }
 
 impl PhysicalDeviceInfo {
@@ -285,9 +322,12 @@ impl PhysicalDeviceInfo {
             properties: Self::get_properties(&instance, physical_device),
             features: Self::get_features(&instance, physical_device),
             memory_properties: Self::get_memory(&instance, physical_device),
+            extensions: Self::get_extensions(&instance, physical_device),
         }
     }
+}
 
+impl PhysicalDeviceInfo {
     fn get_properties(
         instance: &ash::Instance,
         physical_device: vk::PhysicalDevice,
@@ -308,6 +348,19 @@ impl PhysicalDeviceInfo {
         unsafe { instance.get_physical_device_memory_properties(physical_device) }
     }
 
+    fn get_extensions(
+        instance: &ash::Instance,
+        physical_device: vk::PhysicalDevice,
+    ) -> Vec<vk::ExtensionProperties> {
+        unsafe {
+            instance
+                .enumerate_device_extension_properties(physical_device)
+                .unwrap()
+        }
+    }
+}
+
+impl PhysicalDeviceInfo {
     fn is_discrete(&self) -> bool {
         self.properties.device_type == vk::PhysicalDeviceType::DISCRETE_GPU
     }
@@ -333,11 +386,22 @@ impl PhysicalDeviceInfo {
     }
 
     fn satisfies_properties(&self, propertes: vk::PhysicalDeviceProperties) -> bool {
-        todo!()
+        mass::satisfies_properties(&self.properties, &propertes)
     }
 
     fn satisfies_features(&self, features: vk::PhysicalDeviceFeatures) -> bool {
-        todo!()
+        mass::satisifes_features(&self.features, &features)
+    }
+
+    fn satisfies_extensions(&self, extensions: &Vec<CString>) -> bool {
+        let available: HashSet<&CStr> = self
+            .extensions
+            .iter()
+            .map(|extension| unsafe { CStr::from_ptr(extension.extension_name.as_ptr()) })
+            .collect();
+        extensions
+            .iter()
+            .all(|required| available.contains(required.as_c_str()))
     }
 
     fn score(&self) -> u32 {
@@ -421,10 +485,18 @@ impl SwapchainConfig {
 
 impl SwapchainConfig {
     fn build() -> SwapchainInfo {
-        todo!()
+        SwapchainInfo {
+            swapchain: todo!(),
+            images: todo!(),
+            image_views: todo!(),
+            format: todo!(),
+            extent: todo!(),
+            image_count: todo!(),
+        }
     }
 }
 
+#[derive(Debug)]
 pub struct SwapchainInfo {
     pub swapchain: vk::SwapchainKHR,
     pub images: Vec<vk::Image>,
