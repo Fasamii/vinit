@@ -14,7 +14,7 @@ fn main() {
         //         .require_compute_queue()
         //         .require_transfer_queue()
         //         .require_discrete(false)
-        //         .prefer_bset(true)
+        //         .prefer_best(true)
         // })
         // .with_device_extensions([CString::from(vk::KHR_SWAPCHAIN_NAME)].into())
         // .with_swapchain(|swapchain_config| {

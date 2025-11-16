@@ -25,7 +25,7 @@ impl<T> Store<T> for Absent {
 type Field<S, T> = <S as Store<T>>::Stored;
 
 pub struct Base<D: Store<PhysicalDeviceInfo>, S: Store<SwapchainInfo>> {
-    _entry: ash::Entry,
+    entry: ash::Entry,
     instance: ash::Instance,
     device: Field<D, PhysicalDeviceInfo>,
     swapchain: Field<S, SwapchainInfo>,
@@ -40,6 +40,7 @@ pub struct BaseConfig<D: Store<PhysicalDeviceInfo>, S: Store<SwapchainInfo>> {
     swapchain: Option<SwapchainConfig>,
     _has_device: PhantomData<D>,
     _has_swapchain: PhantomData<S>,
+    // TODO: Add queue priority here
 }
 
 impl Default for BaseConfig<Absent, Absent> {
@@ -80,7 +81,7 @@ where
     pub fn build(mut self) -> Base<D, S> {
         let entry = unsafe { ash::Entry::load().expect("Failed to load Entry") };
         let app_info = vk::ApplicationInfo::default()
-            .application_name(<&CStr>::from(&self.app_name))
+            .application_name(self.app_name.as_c_str())
             .application_version(vk::make_api_version(
                 0,
                 self.version.0,
@@ -101,7 +102,7 @@ where
         // TODO: insert required queue families here
 
         Base {
-            _entry: todo!(),
+            entry: todo!(),
             instance,
             device: todo!(),
             swapchain: todo!(),
@@ -117,12 +118,7 @@ pub trait BuildPhysicalDevice<S: Store<PhysicalDeviceInfo>> {
 }
 
 impl BuildPhysicalDevice<Absent> for Absent {
-    fn build_physical_device(
-        _config: Option<PhysicalDeviceSelector>,
-        _instance: &ash::Instance,
-    ) -> () {
-        ()
-    }
+    fn build_physical_device(_config: Option<PhysicalDeviceSelector>, _instance: &ash::Instance) {}
 }
 
 impl BuildPhysicalDevice<Present> for Present {
@@ -135,7 +131,7 @@ impl BuildPhysicalDevice<Present> for Present {
 }
 
 pub trait BuildSwapchain<S: Store<SwapchainInfo>> {
-    fn abuild_swapchain(
+    fn build_swapchain(
         config: Option<SwapchainConfig>,
         instance: &ash::Instance,
         device: &DeviceInfo,
@@ -143,7 +139,7 @@ pub trait BuildSwapchain<S: Store<SwapchainInfo>> {
 }
 
 impl BuildSwapchain<Absent> for Absent {
-    fn abuild_swapchain(
+    fn build_swapchain(
         _config: Option<SwapchainConfig>,
         _instance: &ash::Instance,
         _device: &DeviceInfo,
@@ -153,7 +149,7 @@ impl BuildSwapchain<Absent> for Absent {
 }
 
 impl BuildSwapchain<Present> for Present {
-    fn abuild_swapchain(
+    fn build_swapchain(
         config: Option<SwapchainConfig>,
         instance: &ash::Instance,
         device: &DeviceInfo,
@@ -269,6 +265,7 @@ type QueueHandles<T> = Families<T>;
 
 impl QueueHandles<vk::Queue> {
     fn new() -> Self {
+        // vk::Queue::null() <- Consider that solution
         todo!()
     }
 }
@@ -338,7 +335,7 @@ impl PhysicalDeviceSelector {
         self.required_queues.protected = true;
         self
     }
-    pub fn prefer_bset(mut self, prefer: bool) -> Self {
+    pub fn prefer_best(mut self, prefer: bool) -> Self {
         self.prefer_best = prefer;
         self
     }
@@ -394,10 +391,10 @@ impl PhysicalDeviceInfo {
         Self {
             physical_device,
             queue_families_indices: queue_family_indices,
-            properties: Self::get_properties(&instance, physical_device),
-            features: Self::get_features(&instance, physical_device),
-            memory_properties: Self::get_memory(&instance, physical_device),
-            extensions: Self::get_extensions(&instance, physical_device),
+            properties: Self::get_properties(instance, physical_device),
+            features: Self::get_features(instance, physical_device),
+            memory_properties: Self::get_memory(instance, physical_device),
+            extensions: Self::get_extensions(instance, physical_device),
         }
     }
 }
@@ -468,7 +465,7 @@ impl PhysicalDeviceInfo {
         mass::satisifes_features(&self.features, &features)
     }
 
-    fn satisfies_extensions(&self, extensions: &Vec<CString>) -> bool {
+    fn satisfies_extensions(&self, extensions: &[CString]) -> bool {
         let available: HashSet<&CStr> = self
             .extensions
             .iter()
@@ -492,11 +489,11 @@ impl PhysicalDeviceInfo {
         score += ((vram_mb as f64).log2() as u32).min(1000);
 
         let limits = &self.properties.limits;
-        score += (limits.max_compute_shared_memory_size / 1024).min(100) as u32;
-        score += (limits.max_compute_work_group_invocations / 100).min(100) as u32;
+        score += (limits.max_compute_shared_memory_size / 1024).min(100);
+        score += (limits.max_compute_work_group_invocations / 100).min(100);
 
-        score += (limits.max_image_dimension2_d / 1000).min(100) as u32;
-        score += (limits.max_framebuffer_width / 1000).min(100) as u32;
+        score += (limits.max_image_dimension2_d / 1000).min(100);
+        score += (limits.max_framebuffer_width / 1000).min(100);
 
         if self.features.geometry_shader == vk::TRUE {
             score += 50;
