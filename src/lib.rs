@@ -24,19 +24,19 @@ impl<T> Store<T> for Absent {
 
 type Field<S, T> = <S as Store<T>>::Stored;
 
-pub struct Base<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
+pub struct Base<D: Store<PhysicalDeviceInfo>, S: Store<SwapchainInfo>> {
     _entry: ash::Entry,
     instance: ash::Instance,
-    device: Field<D, DeviceInfo>,
+    device: Field<D, PhysicalDeviceInfo>,
     swapchain: Field<S, SwapchainInfo>,
 }
 
-pub struct BaseConfig<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
+pub struct BaseConfig<D: Store<PhysicalDeviceInfo>, S: Store<SwapchainInfo>> {
     app_name: CString,
     version: (u32, u32, u32),
     instance_extensions: Vec<CString>,
     device_extensions: Vec<CString>,
-    physical_device: PhysicalDeviceSelector,
+    physical_device: Option<PhysicalDeviceSelector>,
     swapchain: Option<SwapchainConfig>,
     _has_device: PhantomData<D>,
     _has_swapchain: PhantomData<S>,
@@ -49,16 +49,16 @@ impl Default for BaseConfig<Absent, Absent> {
             version: (0, 0, 0),
             instance_extensions: Default::default(),
             device_extensions: Default::default(),
-            physical_device: Default::default(),
-            swapchain: Default::default(),
+            physical_device: None,
+            swapchain: None,
             _has_device: PhantomData,
             _has_swapchain: PhantomData,
         }
     }
 }
 
-impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
-    fn cast<D2: Store<DeviceInfo>, S2: Store<SwapchainInfo>>(self) -> BaseConfig<D2, S2> {
+impl<D: Store<PhysicalDeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
+    fn cast<D2: Store<PhysicalDeviceInfo>, S2: Store<SwapchainInfo>>(self) -> BaseConfig<D2, S2> {
         BaseConfig {
             app_name: self.app_name,
             version: self.version,
@@ -72,7 +72,11 @@ impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
     }
 }
 
-impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
+impl<D: Store<PhysicalDeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S>
+where
+    D: BuildPhysicalDevice<D>,
+    S: BuildSwapchain<S>,
+{
     pub fn build(mut self) -> Base<D, S> {
         let entry = unsafe { ash::Entry::load().expect("Failed to load Entry") };
         let app_info = vk::ApplicationInfo::default()
@@ -92,18 +96,73 @@ impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
             .application_info(&app_info)
             .enabled_extension_names(&instance_extensions_raw);
         let instance = unsafe { entry.create_instance(&instance_create_info, None).unwrap() };
+        let physical_device = D::build_physical_device(self.physical_device, &instance);
+
         // TODO: insert required queue families here
-        let physical_device = self
-            .physical_device
-            .require_extensions(self.device_extensions)
-            .select(&instance)
-            .unwrap();
-        println!("{:?}", physical_device);
-        todo!();
+
+        Base {
+            _entry: todo!(),
+            instance,
+            device: todo!(),
+            swapchain: todo!(),
+        }
     }
 }
 
-impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
+pub trait BuildPhysicalDevice<S: Store<PhysicalDeviceInfo>> {
+    fn build_physical_device(
+        config: Option<PhysicalDeviceSelector>,
+        instance: &ash::Instance,
+    ) -> S::Stored;
+}
+
+impl BuildPhysicalDevice<Absent> for Absent {
+    fn build_physical_device(
+        _config: Option<PhysicalDeviceSelector>,
+        _instance: &ash::Instance,
+    ) -> () {
+        ()
+    }
+}
+
+impl BuildPhysicalDevice<Present> for Present {
+    fn build_physical_device(
+        config: Option<PhysicalDeviceSelector>,
+        instance: &ash::Instance,
+    ) -> PhysicalDeviceInfo {
+        unsafe { config.unwrap_unchecked().select(instance).unwrap() }
+    }
+}
+
+pub trait BuildSwapchain<S: Store<SwapchainInfo>> {
+    fn abuild_swapchain(
+        config: Option<SwapchainConfig>,
+        instance: &ash::Instance,
+        device: &DeviceInfo,
+    ) -> Result<S::Stored, ()>;
+}
+
+impl BuildSwapchain<Absent> for Absent {
+    fn abuild_swapchain(
+        _config: Option<SwapchainConfig>,
+        _instance: &ash::Instance,
+        _device: &DeviceInfo,
+    ) -> Result<(), ()> {
+        Ok(())
+    }
+}
+
+impl BuildSwapchain<Present> for Present {
+    fn abuild_swapchain(
+        config: Option<SwapchainConfig>,
+        instance: &ash::Instance,
+        device: &DeviceInfo,
+    ) -> Result<SwapchainInfo, ()> {
+        todo!("Implement building swapchain")
+    }
+}
+
+impl<D: Store<PhysicalDeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
     pub fn with_app_name(mut self, name: CString) -> Self {
         self.app_name = name;
         self
@@ -120,7 +179,7 @@ impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
         mut self,
         physical_device_selector: fn(PhysicalDeviceSelector) -> PhysicalDeviceSelector,
     ) -> BaseConfig<Present, S> {
-        self.physical_device = physical_device_selector(Default::default());
+        self.physical_device = Some(physical_device_selector(Default::default()));
         self.cast()
     }
 }
