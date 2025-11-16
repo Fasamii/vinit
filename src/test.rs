@@ -8,7 +8,6 @@ fn main() {
         .with_app_name(CString::from(c"Super Cool App"))
         .with_app_version((0, 0, 1))
         .with_instance_extensions([].into())
-        .with_device_extensions([CString::from(vk::KHR_SWAPCHAIN_NAME)].into())
         .with_device(|physical_device_selector| {
             physical_device_selector
                 .require_graphics_queue()
@@ -17,6 +16,7 @@ fn main() {
                 .require_discrete(false)
                 .prefer_bset(true)
         })
+        .with_device_extensions([CString::from(vk::KHR_SWAPCHAIN_NAME)].into())
         .with_swapchain(|swapchain_config| {
             swapchain_config
                 .min_img_count(12)

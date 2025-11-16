@@ -6,6 +6,7 @@ mod mass;
 use ash::{self, khr, vk};
 use std::collections::HashSet;
 use std::ffi::{CStr, CString};
+use std::marker::PhantomData;
 
 pub trait Store<T> {
     type Stored;
@@ -23,32 +24,25 @@ impl<T> Store<T> for Absent {
 
 type Field<S, T> = <S as Store<T>>::Stored;
 
-pub struct Base<S: Store<SwapchainInfo>> {
+pub struct Base<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
     _entry: ash::Entry,
     instance: ash::Instance,
-    device: DeviceInfo,
+    device: Field<D, DeviceInfo>,
     swapchain: Field<S, SwapchainInfo>,
 }
 
-impl<S: Store<SwapchainInfo>> Base<S> {}
-
-impl Base<Absent> {
-    fn create_swapchain() -> () {}
-    pub fn is_present(&self) {
-        println!("Swapchain is present {:?}", self.swapchain);
-    }
-}
-
-pub struct BaseConfig {
+pub struct BaseConfig<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
     app_name: CString,
     version: (u32, u32, u32),
     instance_extensions: Vec<CString>,
     device_extensions: Vec<CString>,
     physical_device: PhysicalDeviceSelector,
     swapchain: Option<SwapchainConfig>,
+    _has_device: PhantomData<D>,
+    _has_swapchain: PhantomData<S>,
 }
 
-impl Default for BaseConfig {
+impl Default for BaseConfig<Absent, Absent> {
     fn default() -> Self {
         Self {
             app_name: CString::from(c"No Name"),
@@ -57,12 +51,23 @@ impl Default for BaseConfig {
             device_extensions: Default::default(),
             physical_device: Default::default(),
             swapchain: Default::default(),
+            _has_device: PhantomData,
+            _has_swapchain: PhantomData,
         }
     }
 }
 
-impl BaseConfig {
-    pub fn build(mut self) -> Base<Present> {
+impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
+    fn cast<D2: Store<DeviceInfo>, S2: Store<SwapchainInfo>>(self) -> BaseConfig<D2, S2> {
+        unsafe { std::mem::transmute(self) }
+    }
+}
+
+
+impl BaseConfig<Absent, Absent> {
+impl BaseConfig<Present, Absent> {
+impl BaseConfig<Present, Present> {
+    pub fn build(mut self) -> Base<Present, Present> {
         let entry = unsafe { ash::Entry::load().expect("Failed to load Entry") };
         let app_info = vk::ApplicationInfo::default()
             .application_name(<&CStr>::from(&self.app_name))
@@ -92,7 +97,7 @@ impl BaseConfig {
     }
 }
 
-impl BaseConfig {
+impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
     pub fn with_app_name(mut self, name: CString) -> Self {
         self.app_name = name;
         self
@@ -105,23 +110,26 @@ impl BaseConfig {
         self.instance_extensions = extensions;
         self
     }
-    pub fn with_device_extensions(mut self, extensions: Vec<CString>) -> Self {
-        self.device_extensions = extensions;
-        self
-    }
     pub fn with_device(
         mut self,
         physical_device_selector: fn(PhysicalDeviceSelector) -> PhysicalDeviceSelector,
-    ) -> Self {
+    ) -> BaseConfig<Present, S> {
         self.physical_device = physical_device_selector(Default::default());
+        self.cast()
+    }
+}
+
+impl BaseConfig<Present, Absent> {
+    pub fn with_device_extensions(mut self, extensions: Vec<CString>) -> Self {
+        self.device_extensions = extensions;
         self
     }
     pub fn with_swapchain(
         mut self,
         swapchain_config: fn(SwapchainConfig) -> SwapchainConfig,
-    ) -> Self {
+    ) -> BaseConfig<Present, Present> {
         self.swapchain = Some(swapchain_config(Default::default()));
-        self
+        self.cast()
     }
 }
 
