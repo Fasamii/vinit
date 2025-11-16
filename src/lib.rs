@@ -24,14 +24,14 @@ impl<T> Store<T> for Absent {
 
 type Field<S, T> = <S as Store<T>>::Stored;
 
-pub struct Base<D: Store<PhysicalDeviceInfo>, S: Store<SwapchainInfo>> {
+pub struct Base<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
     entry: ash::Entry,
     instance: ash::Instance,
-    device: Field<D, PhysicalDeviceInfo>,
+    device: Field<D, DeviceInfo>,
     swapchain: Field<S, SwapchainInfo>,
 }
 
-pub struct BaseConfig<D: Store<PhysicalDeviceInfo>, S: Store<SwapchainInfo>> {
+pub struct BaseConfig<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
     app_name: CString,
     version: (u32, u32, u32),
     instance_extensions: Vec<CString>,
@@ -58,8 +58,8 @@ impl Default for BaseConfig<Absent, Absent> {
     }
 }
 
-impl<D: Store<PhysicalDeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
-    fn cast<D2: Store<PhysicalDeviceInfo>, S2: Store<SwapchainInfo>>(self) -> BaseConfig<D2, S2> {
+impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
+    fn cast<D2: Store<DeviceInfo>, S2: Store<SwapchainInfo>>(self) -> BaseConfig<D2, S2> {
         BaseConfig {
             app_name: self.app_name,
             version: self.version,
@@ -73,9 +73,9 @@ impl<D: Store<PhysicalDeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
     }
 }
 
-impl<D: Store<PhysicalDeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S>
+impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S>
 where
-    D: BuildPhysicalDevice<D>,
+    D: BuildDevice<D>,
     S: BuildSwapchain<S>,
 {
     pub fn build(mut self) -> Base<D, S> {
@@ -97,7 +97,7 @@ where
             .application_info(&app_info)
             .enabled_extension_names(&instance_extensions_raw);
         let instance = unsafe { entry.create_instance(&instance_create_info, None).unwrap() };
-        let physical_device = D::build_physical_device(self.physical_device, &instance);
+        let physical_device = D::build_device(self.physical_device, &instance);
 
         // TODO: insert required queue families here
 
@@ -110,23 +110,30 @@ where
     }
 }
 
-pub trait BuildPhysicalDevice<S: Store<PhysicalDeviceInfo>> {
-    fn build_physical_device(
+pub trait BuildDevice<S: Store<DeviceInfo>> {
+    fn build_device(
         config: Option<PhysicalDeviceSelector>,
         instance: &ash::Instance,
-    ) -> S::Stored;
+    ) -> Result<S::Stored, ()>;
 }
 
-impl BuildPhysicalDevice<Absent> for Absent {
-    fn build_physical_device(_config: Option<PhysicalDeviceSelector>, _instance: &ash::Instance) {}
+impl BuildDevice<Absent> for Absent {
+    fn build_device(
+        _config: Option<PhysicalDeviceSelector>,
+        _instance: &ash::Instance,
+    ) -> Result<(), ()> {
+        Ok(())
+    }
 }
 
-impl BuildPhysicalDevice<Present> for Present {
-    fn build_physical_device(
+impl BuildDevice<Present> for Present {
+    fn build_device(
         config: Option<PhysicalDeviceSelector>,
         instance: &ash::Instance,
-    ) -> PhysicalDeviceInfo {
-        unsafe { config.unwrap_unchecked().select(instance).unwrap() }
+    ) -> Result<DeviceInfo, ()> {
+        // TODO: Insert required extensions here
+        // unsafe { config.unwrap_unchecked().select(instance).unwrap() }
+        todo!()
     }
 }
 
@@ -158,7 +165,7 @@ impl BuildSwapchain<Present> for Present {
     }
 }
 
-impl<D: Store<PhysicalDeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
+impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
     pub fn with_app_name(mut self, name: CString) -> Self {
         self.app_name = name;
         self
