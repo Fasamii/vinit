@@ -59,15 +59,21 @@ impl Default for BaseConfig<Absent, Absent> {
 
 impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
     fn cast<D2: Store<DeviceInfo>, S2: Store<SwapchainInfo>>(self) -> BaseConfig<D2, S2> {
-        unsafe { std::mem::transmute(self) }
+        BaseConfig {
+            app_name: self.app_name,
+            version: self.version,
+            instance_extensions: self.instance_extensions,
+            device_extensions: self.device_extensions,
+            physical_device: self.physical_device,
+            swapchain: self.swapchain,
+            _has_device: PhantomData,
+            _has_swapchain: PhantomData,
+        }
     }
 }
 
-
-impl BaseConfig<Absent, Absent> {
-impl BaseConfig<Present, Absent> {
-impl BaseConfig<Present, Present> {
-    pub fn build(mut self) -> Base<Present, Present> {
+impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
+    pub fn build(mut self) -> Base<D, S> {
         let entry = unsafe { ash::Entry::load().expect("Failed to load Entry") };
         let app_info = vk::ApplicationInfo::default()
             .application_name(<&CStr>::from(&self.app_name))
