@@ -8,22 +8,6 @@ use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 
-pub trait Store<T> {
-    type Stored;
-}
-
-pub struct Present;
-impl<T> Store<T> for Present {
-    type Stored = T;
-}
-
-pub struct Absent;
-impl<T> Store<T> for Absent {
-    type Stored = ();
-}
-
-type Field<S, T> = <S as Store<T>>::Stored;
-
 pub struct Base<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
     entry: ash::Entry,
     instance: ash::Instance,
@@ -41,6 +25,22 @@ pub struct BaseConfig<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
     _has_device: PhantomData<D>,
     _has_swapchain: PhantomData<S>,
     // TODO: Add queue priority here
+}
+
+type Field<S, T> = <S as Store<T>>::Stored;
+
+pub trait Store<T> {
+    type Stored;
+}
+
+pub struct Present;
+impl<T> Store<T> for Present {
+    type Stored = T;
+}
+
+pub struct Absent;
+impl<T> Store<T> for Absent {
+    type Stored = ();
 }
 
 impl Default for BaseConfig<Absent, Absent> {
@@ -97,9 +97,9 @@ where
             .application_info(&app_info)
             .enabled_extension_names(&instance_extensions_raw);
         let instance = unsafe { entry.create_instance(&instance_create_info, None).unwrap() };
-        let physical_device = D::build_device(self.physical_device, &instance);
 
         // TODO: insert required queue families here
+        let device = D::build_device(self.physical_device, &instance);
 
         Base {
             entry: todo!(),
@@ -107,6 +107,44 @@ where
             device: todo!(),
             swapchain: todo!(),
         }
+    }
+}
+
+impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
+    pub fn with_app_name(mut self, name: CString) -> Self {
+        self.app_name = name;
+        self
+    }
+    pub fn with_app_version(mut self, version: (u32, u32, u32)) -> Self {
+        self.version = version;
+        self
+    }
+    pub fn with_instance_extensions(mut self, extensions: Vec<CString>) -> Self {
+        self.instance_extensions = extensions;
+        self
+    }
+    pub fn with_device(
+        mut self,
+        physical_device_selector: fn(PhysicalDeviceSelector) -> PhysicalDeviceSelector,
+    ) -> BaseConfig<Present, S> {
+        self.physical_device = Some(physical_device_selector(Default::default()));
+        self.cast()
+    }
+}
+
+impl<S: Store<SwapchainInfo>> BaseConfig<Present, S> {
+    pub fn with_device_extensions(mut self, extensions: Vec<CString>) -> Self {
+        self.device_extensions = extensions;
+        self
+    }
+}
+impl BaseConfig<Present, Absent> {
+    pub fn with_swapchain(
+        mut self,
+        swapchain_config: fn(SwapchainConfig) -> SwapchainConfig,
+    ) -> BaseConfig<Present, Present> {
+        self.swapchain = Some(swapchain_config(Default::default()));
+        self.cast()
     }
 }
 
@@ -134,70 +172,6 @@ impl BuildDevice<Present> for Present {
         // TODO: Insert required extensions here
         // unsafe { config.unwrap_unchecked().select(instance).unwrap() }
         todo!()
-    }
-}
-
-pub trait BuildSwapchain<S: Store<SwapchainInfo>> {
-    fn build_swapchain(
-        config: Option<SwapchainConfig>,
-        instance: &ash::Instance,
-        device: &DeviceInfo,
-    ) -> Result<S::Stored, ()>;
-}
-
-impl BuildSwapchain<Absent> for Absent {
-    fn build_swapchain(
-        _config: Option<SwapchainConfig>,
-        _instance: &ash::Instance,
-        _device: &DeviceInfo,
-    ) -> Result<(), ()> {
-        Ok(())
-    }
-}
-
-impl BuildSwapchain<Present> for Present {
-    fn build_swapchain(
-        config: Option<SwapchainConfig>,
-        instance: &ash::Instance,
-        device: &DeviceInfo,
-    ) -> Result<SwapchainInfo, ()> {
-        todo!("Implement building swapchain")
-    }
-}
-
-impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
-    pub fn with_app_name(mut self, name: CString) -> Self {
-        self.app_name = name;
-        self
-    }
-    pub fn with_app_version(mut self, version: (u32, u32, u32)) -> Self {
-        self.version = version;
-        self
-    }
-    pub fn with_instance_extensions(mut self, extensions: Vec<CString>) -> Self {
-        self.instance_extensions = extensions;
-        self
-    }
-    pub fn with_device(
-        mut self,
-        physical_device_selector: fn(PhysicalDeviceSelector) -> PhysicalDeviceSelector,
-    ) -> BaseConfig<Present, S> {
-        self.physical_device = Some(physical_device_selector(Default::default()));
-        self.cast()
-    }
-}
-
-impl BaseConfig<Present, Absent> {
-    pub fn with_device_extensions(mut self, extensions: Vec<CString>) -> Self {
-        self.device_extensions = extensions;
-        self
-    }
-    pub fn with_swapchain(
-        mut self,
-        swapchain_config: fn(SwapchainConfig) -> SwapchainConfig,
-    ) -> BaseConfig<Present, Present> {
-        self.swapchain = Some(swapchain_config(Default::default()));
-        self.cast()
     }
 }
 
@@ -523,6 +497,34 @@ impl std::fmt::Debug for PhysicalDeviceInfo {
             self.properties.device_type,
             unsafe { CStr::from_ptr(self.properties.device_name.as_ptr()) }
         )
+    }
+}
+
+pub trait BuildSwapchain<S: Store<SwapchainInfo>> {
+    fn build_swapchain(
+        config: Option<SwapchainConfig>,
+        instance: &ash::Instance,
+        device: &DeviceInfo,
+    ) -> Result<S::Stored, ()>;
+}
+
+impl BuildSwapchain<Absent> for Absent {
+    fn build_swapchain(
+        _config: Option<SwapchainConfig>,
+        _instance: &ash::Instance,
+        _device: &DeviceInfo,
+    ) -> Result<(), ()> {
+        Ok(())
+    }
+}
+
+impl BuildSwapchain<Present> for Present {
+    fn build_swapchain(
+        config: Option<SwapchainConfig>,
+        instance: &ash::Instance,
+        device: &DeviceInfo,
+    ) -> Result<SwapchainInfo, ()> {
+        todo!("Implement building swapchain")
     }
 }
 
