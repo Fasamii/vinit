@@ -8,11 +8,11 @@ fn main() {
         .with_app_name(CString::from(c"Super Cool App"))
         .with_app_version((0, 0, 1))
         .with_instance_extensions([].into())
+        // TODO: Consider creating device_config instead which will take all the possible
+        // parameters not only ones suitable for selecting physical_device if that isn't to much of
+        // an overhead
         .with_device(|physical_device_selector| {
             physical_device_selector
-                .require_graphics_queue()
-                .require_compute_queue()
-                .require_transfer_queue()
                 .require_discrete(false)
                 .prefer_best(true)
         })
