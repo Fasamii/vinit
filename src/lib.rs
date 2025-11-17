@@ -3,14 +3,13 @@
 
 // TODO: think about passing &mut CommandPoolContext into some method like
 // .create_command_buffers(&[mut CommandPoolContext], count) or something simmilar
-struct CommandPoolInfo {
+pub struct CommandPoolHandle<'a> {
     // TODO: Maybe a reference idk yet
-    command_pool: vk::CommandPool,
+    pub command_pool: Option<&'a vk::CommandPool>,
 }
 
 mod mass;
 
-use ash::ext::queue_family_foreign;
 use ash::{self, khr, vk};
 use std::collections::HashSet;
 use std::ffi::{CStr, CString};
@@ -170,7 +169,6 @@ impl<S: Store<SwapchainInfo>> BaseConfig<Present, S> {
             QueueFamilyType::Sparse(_) => self.required_queues.sparse = true,
             QueueFamilyType::Protected(_) => self.required_queues.protected = true,
         }
-        todo!("Implement Config for command pool");
         self
     }
 }
@@ -318,7 +316,10 @@ impl QueueFamilies<Option<u32>> {
         families.into_iter().collect()
     }
 
-    fn make_create_info<'a>(&'a self, priorities: &'a [f32; 1]) -> Vec<vk::DeviceQueueCreateInfo<'a>> {
+    fn make_create_info<'a>(
+        &'a self,
+        priorities: &'a [f32; 1],
+    ) -> Vec<vk::DeviceQueueCreateInfo<'a>> {
         self.unique_families()
             .into_iter()
             .map(|familiy| {
@@ -327,6 +328,25 @@ impl QueueFamilies<Option<u32>> {
                     .queue_priorities(priorities)
             })
             .collect()
+    }
+
+    fn remove_non_required(mut self, required: QueueFamilies<bool>) -> Self {
+        if self.graphics.is_some() && !required.graphics {
+            self.graphics = None;
+        };
+        if self.compute.is_some() && !required.compute {
+            self.compute = None;
+        };
+        if self.transfer.is_some() && !required.transfer {
+            self.transfer = None;
+        };
+        if self.sparse.is_some() && !required.sparse {
+            self.sparse = None;
+        };
+        if self.protected.is_some() && !required.protected {
+            self.protected = None;
+        };
+        self
     }
 }
 
@@ -351,9 +371,11 @@ impl DeviceInfo {
         required_queues: QueueFamilies<bool>,
         instance: &ash::Instance,
     ) -> Self {
-        let queue_create_info = physical_device_info
+        let required_queue_family_indices = physical_device_info
             .queue_families_indices
-            .make_create_info(&[1f32]);
+            .remove_non_required(required_queues);
+        let queue_create_info = required_queue_family_indices.make_create_info(&[1.0f32]);
+        println!("queue_create_info = {queue_create_info:#?}");
         let device_extensions_raw: Vec<*const i8> = physical_device_info
             .enabled_extensions
             .iter()
@@ -365,7 +387,11 @@ impl DeviceInfo {
             .queue_create_infos(&queue_create_info);
         let device = unsafe {
             instance
-                .create_device(physical_device_info.physical_device, &device_create_info, None)
+                .create_device(
+                    physical_device_info.physical_device,
+                    &device_create_info,
+                    None,
+                )
                 .expect("Implement - error handling")
         };
         Self {
