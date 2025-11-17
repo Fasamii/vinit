@@ -3,9 +3,9 @@
 
 // TODO: think about passing &mut CommandPoolContext into some method like
 // .create_command_buffers(&[mut CommandPoolContext], count) or something simmilar
-pub struct CommandPoolHandle<'a> {
+pub struct CommandPoolHandle {
     // TODO: Maybe a reference idk yet
-    pub command_pool: Option<&'a vk::CommandPool>,
+    pub command_pool: Option<vk::CommandPool>,
 }
 
 mod mass;
@@ -83,7 +83,7 @@ impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
     }
 }
 
-impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S>
+impl<D: Store<DeviceInfo, Stored = DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S>
 where
     D: BuildDevice<D>,
     S: BuildSwapchain<S>,
@@ -120,11 +120,13 @@ where
         // TODO: Handle errors properly instead of calling unwrap everywhere (FRFR )
         .unwrap();
 
+        let swapchain = S::build_swapchain(self.swapchain, &instance, &device).unwrap();
+
         Base {
-            entry: todo!(),
+            entry,
             instance,
             device,
-            swapchain: todo!(),
+            swapchain,
         }
     }
 }
@@ -157,11 +159,7 @@ impl<S: Store<SwapchainInfo>> BaseConfig<Present, S> {
         self
     }
 
-    pub fn with_command_pool(
-        mut self,
-        queue_type: QueueFamilyType<()>,
-        /*TODO: Implement some command pool context*/
-    ) -> Self {
+    pub fn with_command_pool(mut self, queue_type: QueueFamilyType<()>) -> Self {
         match queue_type {
             QueueFamilyType::Graphics(_) => self.required_queues.graphics = true,
             QueueFamilyType::Compute(_) => self.required_queues.compute = true,
@@ -323,9 +321,11 @@ impl QueueFamilies<Option<u32>> {
         self.unique_families()
             .into_iter()
             .map(|familiy| {
-                vk::DeviceQueueCreateInfo::default()
+                let mut info = vk::DeviceQueueCreateInfo::default()
                     .queue_family_index(familiy)
-                    .queue_priorities(priorities)
+                    .queue_priorities(priorities);
+                info.queue_count = 1;
+                info
             })
             .collect()
     }
@@ -353,16 +353,38 @@ impl QueueFamilies<Option<u32>> {
 // TODO: consider removing T and hardcoding vk::Queue
 type QueueHandles<T> = Families<T>;
 
-impl QueueHandles<vk::Queue> {
-    fn new() -> Self {
-        todo!()
+impl QueueHandles<Option<vk::Queue>> {
+    fn new(device: &ash::Device, indices: QueueFamilies<Option<u32>>) -> Self {
+        let graphics = indices
+            .graphics
+            .map(|idx| unsafe { device.get_device_queue(idx, 0) });
+        let compute = indices
+            .compute
+            .map(|idx| unsafe { device.get_device_queue(idx, 0) });
+        let transfer = indices
+            .transfer
+            .map(|idx| unsafe { device.get_device_queue(idx, 0) });
+        let sparse = indices
+            .sparse
+            .map(|idx| unsafe { device.get_device_queue(idx, 0) });
+        let protected = indices
+            .protected
+            .map(|idx| unsafe { device.get_device_queue(idx, 0) });
+
+        Self {
+            graphics,
+            compute,
+            transfer,
+            sparse,
+            protected,
+        }
     }
 }
 
 pub struct DeviceInfo {
     device: ash::Device,
     physical_info: PhysicalDeviceInfo,
-    queue_handles: QueueHandles<vk::Queue>,
+    queue_handles: QueueHandles<Option<vk::Queue>>,
 }
 
 impl DeviceInfo {
@@ -394,10 +416,11 @@ impl DeviceInfo {
                 )
                 .expect("Implement - error handling")
         };
+        let queue_handles = QueueHandles::new(&device, required_queue_family_indices);
         Self {
             device,
             physical_info: physical_device_info,
-            queue_handles: QueueHandles::new(),
+            queue_handles,
         }
     }
 }

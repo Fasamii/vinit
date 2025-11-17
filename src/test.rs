@@ -24,10 +24,10 @@ fn main() {
         .with_command_pool(vinit::QueueFamilyType::Graphics(()))
         .with_command_pool(vinit::QueueFamilyType::Graphics(()))
         .with_command_pool(vinit::QueueFamilyType::Compute(()))
-        .with_swapchain(|swapchain_config| {
-            swapchain_config
-                .min_img_count(12)
-                .img_format(vk::Format::R8G8B8A8_SRGB)
-        })
+        // .with_swapchain(|swapchain_config| {
+        //     swapchain_config
+        //         .min_img_count(12)
+        //         .img_format(vk::Format::R8G8B8A8_SRGB)
+        // })
         .build();
 }
