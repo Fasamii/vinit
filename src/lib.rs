@@ -152,14 +152,14 @@ pub trait BuildDevice<S: Store<DeviceInfo>> {
     fn build_device(
         config: Option<PhysicalDeviceSelector>,
         instance: &ash::Instance,
-    ) -> Result<S::Stored, ()>;
+    ) -> Result<S::Stored, vk::Result>;
 }
 
 impl BuildDevice<Absent> for Absent {
     fn build_device(
         _config: Option<PhysicalDeviceSelector>,
         _instance: &ash::Instance,
-    ) -> Result<(), ()> {
+    ) -> Result<(), vk::Result> {
         Ok(())
     }
 }
@@ -168,10 +168,12 @@ impl BuildDevice<Present> for Present {
     fn build_device(
         config: Option<PhysicalDeviceSelector>,
         instance: &ash::Instance,
-    ) -> Result<DeviceInfo, ()> {
-        // TODO: Insert required extensions here
-        // unsafe { config.unwrap_unchecked().select(instance).unwrap() }
-        todo!()
+    ) -> Result<DeviceInfo, vk::Result> {
+        let physical_device_info = config
+            .expect("Implement - error handling")
+            .select(instance)
+            .expect("Implement - error handling");
+        Ok(DeviceInfo::new(physical_device_info))
     }
 }
 
@@ -246,7 +248,6 @@ type QueueHandles<T> = Families<T>;
 
 impl QueueHandles<vk::Queue> {
     fn new() -> Self {
-        // vk::Queue::null() <- Consider that solution
         todo!()
     }
 }
