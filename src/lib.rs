@@ -1,13 +1,6 @@
 #![allow(unused)]
 #![allow(dead_code)]
 
-// TODO: think about passing &mut CommandPoolContext into some method like
-// .create_command_buffers(&[mut CommandPoolContext], count) or something simmilar
-pub struct CommandPoolHandle {
-    // TODO: Maybe a reference idk yet
-    pub command_pool: Option<vk::CommandPool>,
-}
-
 mod mass;
 
 use ash::{self, khr, vk};
@@ -32,7 +25,6 @@ pub struct BaseConfig<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
     swapchain: Option<SwapchainConfig>,
     _has_device: PhantomData<D>,
     _has_swapchain: PhantomData<S>,
-    // TODO: Add queue priority here
 }
 
 type Field<S, T> = <S as Store<T>>::Stored;
@@ -159,8 +151,10 @@ impl<S: Store<SwapchainInfo>> BaseConfig<Present, S> {
         self
     }
 
-    pub fn with_command_pool(mut self, queue_type: QueueFamilyType<()>) -> Self {
-        match queue_type {
+    pub fn with_command_pool(mut self, command_pool_handle: &CommandPoolHandle) -> Self {
+        // TODO: Make the command pool creation login and remember that command pool should be
+        // accessible from CommandPoolHandle struct
+        match command_pool_handle.used_queue_type {
             QueueFamilyType::Graphics(_) => self.required_queues.graphics = true,
             QueueFamilyType::Compute(_) => self.required_queues.compute = true,
             QueueFamilyType::Transfer(_) => self.required_queues.transfer = true,
@@ -663,6 +657,29 @@ impl std::fmt::Debug for PhysicalDeviceInfo {
             self.properties.device_type,
             unsafe { CStr::from_ptr(self.properties.device_name.as_ptr()) }
         )
+    }
+}
+
+// TODO: think about passing &mut CommandPoolHandle into some method like
+// .create_command_buffers(&[mut CommandPoolHandle], count) or something simmilar
+pub struct CommandPoolHandle {
+    pub command_pool: Option<vk::CommandPool>,
+    used_queue_type: QueueFamilyType<()>,
+}
+
+impl Default for CommandPoolHandle {
+    fn default() -> Self {
+        Self {
+            command_pool: None,
+            used_queue_type: QueueFamilyType::Graphics(()),
+        }
+    }
+}
+
+impl CommandPoolHandle {
+    pub fn queue_type(mut self, queue_type: QueueFamilyType<()>) -> Self {
+        self.used_queue_type = queue_type;
+        self
     }
 }
 

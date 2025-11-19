@@ -2,6 +2,8 @@ use ash::vk;
 use std::ffi::CString;
 
 fn main() {
+    let cmd_graphics_handle =
+        vinit::CommandPoolHandle::default().queue_type(vinit::QueueFamilyType::Graphics(()));
     let _base = vinit::BaseConfig::default()
         .with_app_name(CString::from(c"Super Cool App"))
         .with_app_version((0, 0, 1))
@@ -14,20 +16,16 @@ fn main() {
                 .require_features(
                     vk::PhysicalDeviceFeatures::default().draw_indirect_first_instance(true),
                 )
-                    .require_properties(vk::PhysicalDeviceProperties::default().device_name(c"").unwrap())
+                .require_properties(
+                    vk::PhysicalDeviceProperties::default()
+                        .device_name(c"")
+                        .unwrap(),
+                )
                 .require_discrete(false)
                 .prefer_best(true)
         })
         .with_device_extensions([CString::from(vk::KHR_SWAPCHAIN_NAME)].into())
-        // You should have some structure that holds CommandBuffers and CommandBufferHandle that
-        // holds only handle to that Pool then actual pools stored in Base should be guaranteed to
-        // don't use any features that would be unsafe in multithreaded applications where pools
-        // are hold by different threads, that call should define which queues are required and
-        // also fill up that Handle structure (srr for bad English if you're reading this for some
-        // reason)
-        .with_command_pool(vinit::QueueFamilyType::Graphics(()))
-        .with_command_pool(vinit::QueueFamilyType::Graphics(()))
-        .with_command_pool(vinit::QueueFamilyType::Compute(()))
+        .with_command_pool(&cmd_graphics_handle)
         // .with_swapchain(|swapchain_config| {
         //     swapchain_config
         //         .min_img_count(12)
