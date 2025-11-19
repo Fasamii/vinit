@@ -16,10 +16,10 @@ use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 
 pub struct Base<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
-    entry: ash::Entry,
-    instance: ash::Instance,
-    device: Field<D, DeviceInfo>,
     swapchain: Field<S, SwapchainInfo>,
+    device: Field<D, DeviceInfo>,
+    instance: ash::Instance,
+    entry: ash::Entry,
 }
 
 pub struct BaseConfig<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
@@ -421,6 +421,15 @@ impl DeviceInfo {
             device,
             physical_info: physical_device_info,
             queue_handles,
+        }
+    }
+}
+
+impl Drop for DeviceInfo {
+    fn drop(&mut self) {
+        unsafe {
+            self.device.device_wait_idle().ok();
+            self.device.destroy_device(None);
         }
     }
 }

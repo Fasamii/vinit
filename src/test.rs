@@ -11,6 +11,10 @@ fn main() {
         // an overhead
         .with_device(|physical_device_selector| {
             physical_device_selector
+                .require_features(
+                    vk::PhysicalDeviceFeatures::default().draw_indirect_first_instance(true),
+                )
+                    .require_properties(vk::PhysicalDeviceProperties::default().device_name(c"").unwrap())
                 .require_discrete(false)
                 .prefer_best(true)
         })
