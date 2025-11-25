@@ -1,6 +1,7 @@
 #![allow(unused)]
 #![allow(dead_code)]
 
+pub mod families;
 mod mass;
 
 use ash::{self, khr, vk};
@@ -20,7 +21,7 @@ pub struct BaseConfig<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
     version: (u32, u32, u32),
     instance_extensions: Vec<CString>,
     device_extensions: Vec<CString>,
-    required_queues: QueueFamilies<bool>,
+    required_queues: families::Families<bool>,
     physical_device: Option<PhysicalDeviceSelector>,
     swapchain: Option<SwapchainConfig>,
     _has_device: PhantomData<D>,
@@ -80,6 +81,7 @@ where
     D: BuildDevice<D>,
     S: BuildSwapchain<S>,
 {
+    #[must_use]
     pub fn build(mut self) -> Base<D, S> {
         let entry = unsafe { ash::Entry::load().expect("Failed to load Entry") };
         let app_info = vk::ApplicationInfo::default()
@@ -151,17 +153,21 @@ impl<S: Store<SwapchainInfo>> BaseConfig<Present, S> {
         self
     }
 
-    pub fn with_command_pool(mut self, command_pool_handle: &CommandPoolHandle) -> Self {
+    // TODO: turn that into lambda function like in with_device and with_swapchain
+    pub fn with_command_pool<Q: families::QueueFamily>(
+        mut self,
+        command_pool_config: &CommandPoolConfig<families::Graphics>,
+    ) -> CommandPoolHandle<Q, Uninitialized> {
         // TODO: Make the command pool creation login and remember that command pool should be
         // accessible from CommandPoolHandle struct
-        match command_pool_handle.used_queue_type {
-            QueueFamilyType::Graphics(_) => self.required_queues.graphics = true,
-            QueueFamilyType::Compute(_) => self.required_queues.compute = true,
-            QueueFamilyType::Transfer(_) => self.required_queues.transfer = true,
-            QueueFamilyType::Sparse(_) => self.required_queues.sparse = true,
-            QueueFamilyType::Protected(_) => self.required_queues.protected = true,
-        }
-        self
+        // match command_pool_handle.used_queue_type {
+        //     QueueFamilyType::Graphics(_) => self.required_queues.graphics = true,
+        //     QueueFamilyType::Compute(_) => self.required_queues.compute = true,
+        //     QueueFamilyType::Transfer(_) => self.required_queues.transfer = true,
+        //     QueueFamilyType::Sparse(_) => self.required_queues.sparse = true,
+        //     QueueFamilyType::Protected(_) => self.required_queues.protected = true,
+        // }
+        todo!();
     }
 }
 impl BaseConfig<Present, Absent> {
@@ -179,7 +185,7 @@ pub trait BuildDevice<S: Store<DeviceInfo>> {
         config: Option<PhysicalDeviceSelector>,
         instance: &ash::Instance,
         extensions: Vec<CString>, // TODO: Convert that earlier into &CStr and pass with []
-        required_queues: QueueFamilies<bool>,
+        required_queues: families::Families<bool>,
     ) -> Result<S::Stored, vk::Result>;
 }
 
@@ -188,7 +194,7 @@ impl BuildDevice<Absent> for Absent {
         _config: Option<PhysicalDeviceSelector>,
         _instance: &ash::Instance,
         _extensions: Vec<CString>,
-        _required_queues: QueueFamilies<bool>,
+        _required_queues: families::Families<bool>,
     ) -> Result<(), vk::Result> {
         Ok(())
     }
@@ -199,7 +205,7 @@ impl BuildDevice<Present> for Present {
         config: Option<PhysicalDeviceSelector>,
         instance: &ash::Instance,
         extensions: Vec<CString>,
-        required_queues: QueueFamilies<bool>,
+        required_queues: families::Families<bool>,
     ) -> Result<DeviceInfo, vk::Result> {
         let physical_device_info = config
             .expect("Implement - error handling")
@@ -212,143 +218,11 @@ impl BuildDevice<Present> for Present {
     }
 }
 
-// TODO: If it stays unused remove T and make variants don't hold any data
-pub enum QueueFamilyType<T> {
-    Graphics(T),
-    Compute(T),
-    Transfer(T),
-    Sparse(T),
-    Protected(T),
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct Families<T> {
-    pub graphics: T,
-    pub compute: T,
-    pub transfer: T,
-    pub sparse: T,
-    pub protected: T,
-}
-
-impl Default for Families<bool> {
-    fn default() -> Self {
-        Self {
-            graphics: false,
-            compute: false,
-            transfer: false,
-            sparse: false,
-            protected: false,
-        }
-    }
-}
-
-impl<T> Default for Families<Option<T>> {
-    fn default() -> Self {
-        Self {
-            graphics: None,
-            compute: None,
-            transfer: None,
-            sparse: None,
-            protected: None,
-        }
-    }
-}
-
-type QueueFamilies<T> = Families<T>;
-
-impl QueueFamilies<Option<u32>> {
-    fn query_new(instance: &ash::Instance, physical_device: vk::PhysicalDevice) -> Self {
-        let mut new: Self = Default::default();
-        let queues =
-            unsafe { instance.get_physical_device_queue_family_properties(physical_device) };
-        for (idx, family) in queues.iter().enumerate() {
-            let idx = idx as u32;
-
-            if family.queue_flags.contains(vk::QueueFlags::GRAPHICS) && new.graphics.is_none() {
-                new.graphics = Some(idx);
-            }
-
-            if family.queue_flags.contains(vk::QueueFlags::COMPUTE) && new.compute.is_none() {
-                new.compute = Some(idx);
-            }
-
-            if family.queue_flags.contains(vk::QueueFlags::TRANSFER) && new.transfer.is_none() {
-                new.transfer = Some(idx);
-            }
-
-            if family.queue_flags.contains(vk::QueueFlags::SPARSE_BINDING) && new.sparse.is_none() {
-                new.sparse = Some(idx);
-            }
-
-            if family.queue_flags.contains(vk::QueueFlags::PROTECTED) && new.protected.is_none() {
-                new.protected = Some(idx);
-            }
-        }
-        new
-    }
-
-    fn unique_families(&self) -> Vec<u32> {
-        let mut families = std::collections::HashSet::new();
-        if let Some(g) = self.graphics {
-            families.insert(g);
-        }
-        if let Some(c) = self.compute {
-            families.insert(c);
-        }
-        if let Some(t) = self.transfer {
-            families.insert(t);
-        }
-        if let Some(s) = self.sparse {
-            families.insert(s);
-        }
-        if let Some(p) = self.protected {
-            families.insert(p);
-        }
-
-        families.into_iter().collect()
-    }
-
-    fn make_create_info<'a>(
-        &'a self,
-        priorities: &'a [f32; 1],
-    ) -> Vec<vk::DeviceQueueCreateInfo<'a>> {
-        self.unique_families()
-            .into_iter()
-            .map(|familiy| {
-                let mut info = vk::DeviceQueueCreateInfo::default()
-                    .queue_family_index(familiy)
-                    .queue_priorities(priorities);
-                info.queue_count = 1;
-                info
-            })
-            .collect()
-    }
-
-    fn remove_non_required(mut self, required: QueueFamilies<bool>) -> Self {
-        if self.graphics.is_some() && !required.graphics {
-            self.graphics = None;
-        };
-        if self.compute.is_some() && !required.compute {
-            self.compute = None;
-        };
-        if self.transfer.is_some() && !required.transfer {
-            self.transfer = None;
-        };
-        if self.sparse.is_some() && !required.sparse {
-            self.sparse = None;
-        };
-        if self.protected.is_some() && !required.protected {
-            self.protected = None;
-        };
-        self
-    }
-}
-
 // TODO: consider removing T and hardcoding vk::Queue
-type QueueHandles<T> = Families<T>;
+type QueueHandles<T> = families::Families<T>;
 
 impl QueueHandles<Option<vk::Queue>> {
-    fn new(device: &ash::Device, indices: QueueFamilies<Option<u32>>) -> Self {
+    fn new(device: &ash::Device, indices: families::Families<Option<u32>>) -> Self {
         let graphics = indices
             .graphics
             .map(|idx| unsafe { device.get_device_queue(idx, 0) });
@@ -384,12 +258,12 @@ pub struct DeviceInfo {
 impl DeviceInfo {
     fn new(
         physical_device_info: PhysicalDeviceInfo,
-        required_queues: QueueFamilies<bool>,
+        required_queues: families::Families<bool>,
         instance: &ash::Instance,
     ) -> Self {
         let required_queue_family_indices = physical_device_info
             .queue_families_indices
-            .remove_non_required(required_queues);
+            .filter_required(&required_queues);
         let queue_create_info = required_queue_family_indices.make_create_info(&[1.0f32]);
         println!("queue_create_info = {queue_create_info:#?}");
         let device_extensions_raw: Vec<*const i8> = physical_device_info
@@ -431,7 +305,7 @@ impl Drop for DeviceInfo {
 pub struct PhysicalDeviceSelector {
     prefer_best: bool,
     require_discrete: bool,
-    required_queues: QueueFamilies<bool>,
+    required_queues: families::Families<bool>,
     required_properties: vk::PhysicalDeviceProperties,
     required_features: vk::PhysicalDeviceFeatures,
     required_extensions: Vec<CString>,
@@ -474,7 +348,7 @@ impl PhysicalDeviceSelector {
         self.required_features = features;
         self
     }
-    fn require_queues(mut self, queues: QueueFamilies<bool>) -> Self {
+    fn require_queues(mut self, queues: families::Families<bool>) -> Self {
         self.required_queues = queues;
         self
     }
@@ -511,7 +385,7 @@ impl PhysicalDeviceSelector {
 
 pub struct PhysicalDeviceInfo {
     pub physical_device: vk::PhysicalDevice,
-    pub queue_families_indices: QueueFamilies<Option<u32>>,
+    pub queue_families_indices: families::Families<Option<u32>>,
     pub properties: vk::PhysicalDeviceProperties,
     pub memory_properties: vk::PhysicalDeviceMemoryProperties,
     pub enabled_features: vk::PhysicalDeviceFeatures,
@@ -529,7 +403,7 @@ impl PhysicalDeviceInfo {
     ) -> Self {
         Self {
             physical_device,
-            queue_families_indices: QueueFamilies::query_new(instance, physical_device),
+            queue_families_indices: families::Families::query(instance, physical_device),
             properties: Self::get_properties(instance, physical_device),
             memory_properties: Self::get_memory(instance, physical_device),
             enabled_features,
@@ -578,7 +452,7 @@ impl PhysicalDeviceInfo {
         self.properties.device_type == vk::PhysicalDeviceType::DISCRETE_GPU
     }
 
-    fn satisfies_families(&self, queue_families: QueueFamilies<bool>) -> bool {
+    fn satisfies_families(&self, queue_families: families::Families<bool>) -> bool {
         if queue_families.graphics && self.queue_families_indices.graphics.is_none() {
             return false;
         }
@@ -660,27 +534,25 @@ impl std::fmt::Debug for PhysicalDeviceInfo {
     }
 }
 
-// TODO: think about passing &mut CommandPoolHandle into some method like
-// .create_command_buffers(&[mut CommandPoolHandle], count) or something simmilar
-pub struct CommandPoolHandle {
-    pub command_pool: Option<vk::CommandPool>,
-    used_queue_type: QueueFamilyType<()>,
-}
+pub trait InitState {}
+pub struct Uninitialized;
+impl InitState for Uninitialized {}
+pub struct Initialized;
+impl InitState for Initialized {}
 
-impl Default for CommandPoolHandle {
-    fn default() -> Self {
-        Self {
-            command_pool: None,
-            used_queue_type: QueueFamilyType::Graphics(()),
-        }
-    }
+pub struct CommandPoolConfig<Q: families::QueueFamily> {
+    flags: vk::CommandPoolCreateFlags,
+    _queue: PhantomData<Q>,
 }
+pub struct CommandPoolHandle<Q: families::QueueFamily, S: InitState> {
+    pub command_pool: vk::CommandPool,
 
-impl CommandPoolHandle {
-    pub fn queue_type(mut self, queue_type: QueueFamilyType<()>) -> Self {
-        self.used_queue_type = queue_type;
-        self
-    }
+    // NOTE: Needed only for cleanup
+    // TODO: make sure you preserver right order of dropping data
+    device: ash::Device,
+
+    _queue: PhantomData<Q>,
+    _state: PhantomData<S>,
 }
 
 pub trait BuildSwapchain<S: Store<SwapchainInfo>> {
