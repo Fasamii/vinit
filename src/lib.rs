@@ -1,16 +1,41 @@
 #![allow(unused)]
 #![allow(dead_code)]
 
-pub mod families;
-mod mass;
-
 use ash::{self, khr, vk};
 use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 
+use crate::families::Families;
+
+pub mod command;
+pub mod families;
+mod mass;
+
+pub trait InitState {}
+pub struct Uninitialized;
+impl InitState for Uninitialized {}
+pub struct Initialized;
+impl InitState for Initialized {}
+
+pub trait Store<T> {
+    type Stored;
+}
+pub struct Present;
+impl<T> Store<T> for Present {
+    type Stored = T;
+}
+pub struct Absent;
+impl<T> Store<T> for Absent {
+    type Stored = ();
+}
+
+type Field<S, T> = <S as Store<T>>::Stored;
+
 pub struct Base<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
     swapchain: Field<S, SwapchainInfo>,
+    // command: families::Families<Vec<command::CommandPoolInfo>>, // TODO: Store that in the way that
+    // only access functions for only existing command pools (queues) are implemented
     device: Field<D, DeviceInfo>,
     instance: ash::Instance,
     entry: ash::Entry,
@@ -24,24 +49,10 @@ pub struct BaseConfig<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
     required_queues: families::Families<bool>,
     physical_device: Option<PhysicalDeviceSelector>,
     swapchain: Option<SwapchainConfig>,
+    // command_pools: Vec<command::CommandPoolConfig<>> // TODO: Maybe store queue info as value or
+    // create separate variable for each queue type + use field type to determine if it exits
     _has_device: PhantomData<D>,
     _has_swapchain: PhantomData<S>,
-}
-
-type Field<S, T> = <S as Store<T>>::Stored;
-
-pub trait Store<T> {
-    type Stored;
-}
-
-pub struct Present;
-impl<T> Store<T> for Present {
-    type Stored = T;
-}
-
-pub struct Absent;
-impl<T> Store<T> for Absent {
-    type Stored = ();
 }
 
 impl Default for BaseConfig<Absent, Absent> {
@@ -102,7 +113,6 @@ where
             .enabled_extension_names(&instance_extensions_raw);
         let instance = unsafe { entry.create_instance(&instance_create_info, None).unwrap() };
 
-        // TODO: Insert required queue families here
         // TODO: Pass self.device_extensions via reference and with array instead of vector also
         // convert into &CStr
         let device = D::build_device(
@@ -140,9 +150,9 @@ impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
     }
     pub fn with_device(
         mut self,
-        physical_device_selector: fn(PhysicalDeviceSelector) -> PhysicalDeviceSelector,
+        device_selector: fn(PhysicalDeviceSelector) -> PhysicalDeviceSelector,
     ) -> BaseConfig<Present, S> {
-        self.physical_device = Some(physical_device_selector(Default::default()));
+        self.physical_device = Some(device_selector(Default::default()));
         self.cast()
     }
 }
@@ -154,19 +164,12 @@ impl<S: Store<SwapchainInfo>> BaseConfig<Present, S> {
     }
 
     // TODO: turn that into lambda function like in with_device and with_swapchain
-    pub fn with_command_pool<Q: families::QueueFamily>(
-        mut self,
-        command_pool_config: &CommandPoolConfig<families::Graphics>,
-    ) -> CommandPoolHandle<Q, Uninitialized> {
-        // TODO: Make the command pool creation login and remember that command pool should be
-        // accessible from CommandPoolHandle struct
-        // match command_pool_handle.used_queue_type {
-        //     QueueFamilyType::Graphics(_) => self.required_queues.graphics = true,
-        //     QueueFamilyType::Compute(_) => self.required_queues.compute = true,
-        //     QueueFamilyType::Transfer(_) => self.required_queues.transfer = true,
-        //     QueueFamilyType::Sparse(_) => self.required_queues.sparse = true,
-        //     QueueFamilyType::Protected(_) => self.required_queues.protected = true,
-        // }
+    pub fn add_command_pool<Q: families::QueueFamily>(
+        &mut self,
+        command_pool_config: fn(command::CommandPoolConfig<Q>) -> command::CommandPoolConfig<Q>,
+    ) -> command::CommandPoolHandle<Q, Uninitialized> {
+        self.required_queues.set::<Q>(true);
+        command_pool_config(Default::default());
         todo!();
     }
 }
@@ -532,27 +535,6 @@ impl std::fmt::Debug for PhysicalDeviceInfo {
             unsafe { CStr::from_ptr(self.properties.device_name.as_ptr()) }
         )
     }
-}
-
-pub trait InitState {}
-pub struct Uninitialized;
-impl InitState for Uninitialized {}
-pub struct Initialized;
-impl InitState for Initialized {}
-
-pub struct CommandPoolConfig<Q: families::QueueFamily> {
-    flags: vk::CommandPoolCreateFlags,
-    _queue: PhantomData<Q>,
-}
-pub struct CommandPoolHandle<Q: families::QueueFamily, S: InitState> {
-    pub command_pool: vk::CommandPool,
-
-    // NOTE: Needed only for cleanup
-    // TODO: make sure you preserver right order of dropping data
-    device: ash::Device,
-
-    _queue: PhantomData<Q>,
-    _state: PhantomData<S>,
 }
 
 pub trait BuildSwapchain<S: Store<SwapchainInfo>> {
