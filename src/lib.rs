@@ -71,6 +71,14 @@ impl Default for BaseConfig<Absent, Absent> {
     }
 }
 
+impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> Drop for Base<D, S> {
+    fn drop(&mut self) {
+        unsafe {
+            self.instance.destroy_instance(None);
+        }
+    }
+}
+
 impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
     fn cast<D2: Store<DeviceInfo>, S2: Store<SwapchainInfo>>(self) -> BaseConfig<D2, S2> {
         BaseConfig {
