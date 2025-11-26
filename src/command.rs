@@ -1,7 +1,7 @@
 use ash::vk;
 use std::marker::PhantomData;
 
-use crate::families::{self, Families};
+use crate::families;
 
 pub struct CommandPoolHandle<Q: families::QueueFamily, S: super::InitState> {
     pub command_pool: vk::CommandPool,
