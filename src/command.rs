@@ -1,17 +1,14 @@
 use ash::vk;
 use std::marker::PhantomData;
 
-use crate::families;
+use crate::{command, families};
 
-pub struct CommandPoolHandle<Q: families::QueueFamily, S: super::InitState> {
+// TODO: get back to the handle idea but instead of storing all the data make it only point to the
+// data in Base struct
+pub struct CommandPoolInfo<Q: families::QueueFamily> {
     pub command_pool: vk::CommandPool,
-
-    // NOTE: Needed only for cleanup
-    // TODO: make sure you preserver right order of dropping data
     device: ash::Device,
-
     _queue: PhantomData<Q>,
-    _state: PhantomData<S>,
 }
 
 pub struct CommandPoolConfig<Q: families::QueueFamily> {
@@ -59,5 +56,43 @@ impl<Q: families::QueueFamily> CommandPoolConfig<Q> {
     pub fn require_flags(mut self, flags: vk::CommandPoolCreateFlags) -> Self {
         self.flags = flags;
         self
+    }
+}
+
+pub enum PoolConfig {
+    Graphics(CommandPoolConfig<families::Graphics>),
+    Compute(CommandPoolConfig<families::Compute>),
+    Transfer(CommandPoolConfig<families::Transfer>),
+    Sparse(CommandPoolConfig<families::Sparse>),
+    Protected(CommandPoolConfig<families::Protected>),
+}
+
+impl From<CommandPoolConfig<families::Graphics>> for PoolConfig {
+    fn from(config: CommandPoolConfig<families::Graphics>) -> Self {
+        PoolConfig::Graphics(config)
+    }
+}
+
+impl From<CommandPoolConfig<families::Compute>> for PoolConfig {
+    fn from(config: CommandPoolConfig<families::Compute>) -> Self {
+        PoolConfig::Compute(config)
+    }
+}
+
+impl From<CommandPoolConfig<families::Transfer>> for PoolConfig {
+    fn from(config: CommandPoolConfig<families::Transfer>) -> Self {
+        PoolConfig::Transfer(config)
+    }
+}
+
+impl From<CommandPoolConfig<families::Sparse>> for PoolConfig {
+    fn from(config: CommandPoolConfig<families::Sparse>) -> Self {
+        PoolConfig::Sparse(config)
+    }
+}
+
+impl From<CommandPoolConfig<families::Protected>> for PoolConfig {
+    fn from(config: CommandPoolConfig<families::Protected>) -> Self {
+        PoolConfig::Protected(config)
     }
 }

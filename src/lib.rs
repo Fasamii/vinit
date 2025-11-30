@@ -6,6 +6,7 @@ use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 
+use crate::command::{CommandPoolConfig, PoolConfig};
 use crate::families::Families;
 
 pub mod command;
@@ -34,8 +35,8 @@ type Field<S, T> = <S as Store<T>>::Stored;
 
 pub struct Base<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
     swapchain: Field<S, SwapchainInfo>,
-    // command: families::Families<Vec<command::CommandPoolInfo>>, // TODO: Store that in the way that
-    // only access functions for only existing command pools (queues) are implemented
+    /* TODO: Make some universal command pools struct which holds optionally all the command
+    pools using Field type */
     device: Field<D, DeviceInfo>,
     instance: ash::Instance,
     entry: ash::Entry,
@@ -49,8 +50,7 @@ pub struct BaseConfig<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
     required_queues: families::Families<bool>,
     physical_device: Option<PhysicalDeviceSelector>,
     swapchain: Option<SwapchainConfig>,
-    // command_pools: Vec<command::CommandPoolConfig<>> // TODO: Maybe store queue info as value or
-    // create separate variable for each queue type + use field type to determine if it exits
+    command_pools: Vec<command::PoolConfig>,
     _has_device: PhantomData<D>,
     _has_swapchain: PhantomData<S>,
 }
@@ -65,6 +65,7 @@ impl Default for BaseConfig<Absent, Absent> {
             required_queues: Default::default(),
             physical_device: None,
             swapchain: None,
+            command_pools: Default::default(),
             _has_device: PhantomData,
             _has_swapchain: PhantomData,
         }
@@ -89,6 +90,7 @@ impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
             required_queues: self.required_queues,
             physical_device: self.physical_device,
             swapchain: self.swapchain,
+            command_pools: self.command_pools,
             _has_device: PhantomData,
             _has_swapchain: PhantomData,
         }
@@ -158,9 +160,9 @@ impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
     }
     pub fn with_device(
         mut self,
-        device_selector: fn(PhysicalDeviceSelector) -> PhysicalDeviceSelector,
+        configure: fn(PhysicalDeviceSelector) -> PhysicalDeviceSelector,
     ) -> BaseConfig<Present, S> {
-        self.physical_device = Some(device_selector(Default::default()));
+        self.physical_device = Some(configure(Default::default()));
         self.cast()
     }
 }
@@ -173,20 +175,24 @@ impl<S: Store<SwapchainInfo>> BaseConfig<Present, S> {
 
     // TODO: turn that into lambda function like in with_device and with_swapchain
     pub fn add_command_pool<Q: families::QueueFamily>(
-        &mut self,
-        command_pool_config: fn(command::CommandPoolConfig<Q>) -> command::CommandPoolConfig<Q>,
-    ) -> command::CommandPoolHandle<Q, Uninitialized> {
+        mut self,
+        configure: fn(command::CommandPoolConfig<Q>) -> command::CommandPoolConfig<Q>,
+    ) -> Self
+    where
+        PoolConfig: From<CommandPoolConfig<Q>>,
+    {
         self.required_queues.set::<Q>(true);
-        command_pool_config(Default::default());
-        todo!();
+        let config = configure(CommandPoolConfig::default());
+        self.command_pools.push(config.into());
+        self
     }
 }
 impl BaseConfig<Present, Absent> {
     pub fn with_swapchain(
         mut self,
-        swapchain_config: fn(SwapchainConfig) -> SwapchainConfig,
+        configure: fn(SwapchainConfig) -> SwapchainConfig,
     ) -> BaseConfig<Present, Present> {
-        self.swapchain = Some(swapchain_config(Default::default()));
+        self.swapchain = Some(configure(Default::default()));
         self.cast()
     }
 }

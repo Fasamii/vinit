@@ -57,6 +57,15 @@ impl QueueFamily for Protected {
 }
 
 #[derive(Clone, Copy, Debug)]
+pub enum FamilyType<T> {
+    Graphics(T),
+    Compute(T),
+    Transfer(T),
+    Sparse(T),
+    Protected(T),
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct Families<T> {
     pub graphics: T,
     pub compute: T,
