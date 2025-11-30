@@ -2,7 +2,8 @@ use ash::vk;
 use std::ffi::CString;
 
 fn main() {
-    let mut _base = vinit::BaseConfig::default()
+    #[allow(unused_variables)]
+    let base = vinit::BaseConfig::default()
         .with_app_name(CString::from(c"Super Cool App"))
         .with_app_version((0, 0, 1))
         .with_instance_extensions([].into())

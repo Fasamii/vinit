@@ -9,15 +9,9 @@ use std::marker::PhantomData;
 use crate::command::{CommandPoolConfig, PoolConfig};
 use crate::families::Families;
 
-pub mod command;
-pub mod families;
+mod command;
+mod families;
 mod mass;
-
-pub trait InitState {}
-pub struct Uninitialized;
-impl InitState for Uninitialized {}
-pub struct Initialized;
-impl InitState for Initialized {}
 
 pub trait Store<T> {
     type Stored;
