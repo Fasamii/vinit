@@ -6,7 +6,11 @@ fn main() {
     let base = vinit::BaseConfig::default()
         .with_app_name(CString::from(c"Super Cool App"))
         .with_app_version((0, 0, 1))
-        .with_instance_extensions([].into())
+        .with_instance_extensions(vec![
+            CString::from(c"VK_KHR_surface"),
+            CString::from(c"VK_KHR_wayland_surface"),
+        ])
+        .with_validation_layers(vec![CString::from(c"VK_LAYER_KHRONOS_validation")])
         .with_device(|device_selector| {
             device_selector
                 .require_features(
@@ -21,9 +25,7 @@ fn main() {
                 .prefer_best(true)
         })
         .with_device_extensions([CString::from(vk::KHR_SWAPCHAIN_NAME)].into())
-        // FIXME: Requesting command pools makes program segfault on cleanup probably you should
-        // implement Drop on CommandPoolInfo
-        // .add_command_pool(|config| config.graphics_queue())
+        .add_command_pool(|config| config.graphics_queue())
         // .add_command_pool(|config| config.transfer_queue())
         // .add_command_pool(|config| config.compute_queue())
         // .with_swapchain(|swapchain_config| {

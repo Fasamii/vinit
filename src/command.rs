@@ -6,9 +6,19 @@ use crate::{command, families};
 // TODO: get back to the handle idea but instead of storing all the data make it only point to the
 // data in Base struct
 pub struct CommandPoolInfo<Q: families::QueueFamily> {
-    pub command_pool: vk::CommandPool,
+    pub pool: vk::CommandPool,
     device: ash::Device,
+    queue: vk::Queue,
     _queue: PhantomData<Q>,
+}
+
+impl<Q: families::QueueFamily> Drop for CommandPoolInfo<Q> {
+    fn drop(&mut self) {
+        unsafe {
+            self.device.queue_wait_idle(self.queue).unwrap();
+            self.device.destroy_command_pool(self.pool, None);
+        }
+    }
 }
 
 pub struct CommandPoolConfig<Q: families::QueueFamily> {

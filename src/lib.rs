@@ -27,12 +27,14 @@ impl<T> Store<T> for Absent {
 
 type Field<S, T> = <S as Store<T>>::Stored;
 
+struct InstanceInfo(ash::Instance);
+
+/* TODO: Make some universal command pools struct which holds optionally all the command
+pools using Field type */
 pub struct Base<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
     swapchain: Field<S, SwapchainInfo>,
-    /* TODO: Make some universal command pools struct which holds optionally all the command
-    pools using Field type */
     device: Field<D, DeviceInfo>,
-    instance: ash::Instance,
+    instance: InstanceInfo,
     entry: ash::Entry,
 }
 
@@ -40,6 +42,7 @@ pub struct BaseConfig<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
     app_name: CString,
     version: (u32, u32, u32),
     instance_extensions: Vec<CString>,
+    layer_extensions: Vec<CString>,
     device_extensions: Vec<CString>,
     required_queues: families::Families<bool>,
     physical_device: Option<PhysicalDeviceSelector>,
@@ -55,6 +58,7 @@ impl Default for BaseConfig<Absent, Absent> {
             app_name: CString::from(c"No Name"),
             version: (0, 0, 0),
             instance_extensions: Default::default(),
+            layer_extensions: Default::default(),
             device_extensions: Default::default(),
             required_queues: Default::default(),
             physical_device: None,
@@ -66,10 +70,10 @@ impl Default for BaseConfig<Absent, Absent> {
     }
 }
 
-impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> Drop for Base<D, S> {
+impl Drop for InstanceInfo {
     fn drop(&mut self) {
         unsafe {
-            self.instance.destroy_instance(None);
+            self.0.destroy_instance(None);
         }
     }
 }
@@ -80,6 +84,7 @@ impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
             app_name: self.app_name,
             version: self.version,
             instance_extensions: self.instance_extensions,
+            layer_extensions: self.layer_extensions,
             device_extensions: self.device_extensions,
             required_queues: self.required_queues,
             physical_device: self.physical_device,
@@ -112,9 +117,18 @@ where
             .iter()
             .map(|name| name.as_ptr())
             .collect();
+
+        let layer_names_raw: Vec<*const i8> = self
+            .layer_extensions
+            .iter()
+            .map(|name| name.as_ptr())
+            .collect();
+
         let instance_create_info = vk::InstanceCreateInfo::default()
             .application_info(&app_info)
-            .enabled_extension_names(&instance_extensions_raw);
+            .enabled_extension_names(&instance_extensions_raw)
+            .enabled_layer_names(&layer_names_raw);
+
         let instance = unsafe { entry.create_instance(&instance_create_info, None).unwrap() };
 
         // TODO: Pass self.device_extensions via reference and with array instead of vector also
@@ -131,10 +145,10 @@ where
         let swapchain = S::build_swapchain(self.swapchain, &instance, &device).unwrap();
 
         Base {
-            entry,
-            instance,
-            device,
             swapchain,
+            device,
+            instance: InstanceInfo(instance),
+            entry,
         }
     }
 }
@@ -158,6 +172,12 @@ impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
     ) -> BaseConfig<Present, S> {
         self.physical_device = Some(configure(Default::default()));
         self.cast()
+    }
+    pub fn with_validation_layers(mut self, extensions: Vec<CString>) -> Self {
+        self.instance_extensions
+            .push(CString::from(c"VK_EXT_debug_utils"));
+        self.layer_extensions = extensions;
+        self
     }
 }
 
@@ -276,7 +296,9 @@ impl DeviceInfo {
             .queue_families_indices
             .filter_required(&required_queues);
         let queue_create_info = required_queue_family_indices.make_create_info(&[1.0f32]);
+
         println!("queue_create_info = {queue_create_info:#?}");
+
         let device_extensions_raw: Vec<*const i8> = physical_device_info
             .enabled_extensions
             .iter()
