@@ -184,19 +184,3 @@ impl Families<bool> {
         *self.get::<Q>()
     }
 }
-
-pub struct PhantomFamily<G, C, T, S, P>(PhantomData<(G, C, T, S, P)>);
-
-impl<G, C, T, S, P> Default for PhantomFamily<G, C, T, S, P> {
-    fn default() -> Self {
-        Self(PhantomData)
-    }
-}
-
-impl<G, C, T, S, P> Clone for PhantomFamily<G, C, T, S, P> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<G, C, T, S, P> Copy for PhantomFamily<G, C, T, S, P> {}
