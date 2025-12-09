@@ -31,14 +31,35 @@ struct InstanceInfo(ash::Instance);
 
 /* TODO: Make some universal command pools struct which holds optionally all the command
 pools using Field type */
-pub struct Base<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
+pub struct Base<
+    D: Store<DeviceInfo>,
+    S: Store<SwapchainInfo>,
+    CG: Store<command::CommandPoolInfo<families::Graphics>>,
+    CC: Store<command::CommandPoolInfo<families::Compute>>,
+    CT: Store<command::CommandPoolInfo<families::Transfer>>,
+    CS: Store<command::CommandPoolInfo<families::Sparse>>,
+    CP: Store<command::CommandPoolInfo<families::Protected>>,
+> {
     swapchain: Field<S, SwapchainInfo>,
+    cmd_graphics: Field<CG, command::CommandPoolInfo<families::Graphics>>,
+    cmd_compute: Field<CC, command::CommandPoolInfo<families::Compute>>,
+    cmd_transfer: Field<CT, command::CommandPoolInfo<families::Transfer>>,
+    cmd_sparse: Field<CS, command::CommandPoolInfo<families::Sparse>>,
+    cmd_protected: Field<CP, command::CommandPoolInfo<families::Protected>>,
     device: Field<D, DeviceInfo>,
     instance: InstanceInfo,
     entry: ash::Entry,
 }
 
-pub struct BaseConfig<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
+pub struct BaseConfig<
+    D: Store<DeviceInfo>,
+    S: Store<SwapchainInfo>,
+    CG: Store<command::CommandPoolInfo<families::Graphics>>,
+    CC: Store<command::CommandPoolInfo<families::Compute>>,
+    CT: Store<command::CommandPoolInfo<families::Transfer>>,
+    CS: Store<command::CommandPoolInfo<families::Sparse>>,
+    CP: Store<command::CommandPoolInfo<families::Protected>>,
+> {
     app_name: CString,
     version: (u32, u32, u32),
     instance_extensions: Vec<CString>,
@@ -50,9 +71,14 @@ pub struct BaseConfig<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> {
     command_pools: Vec<command::PoolConfig>,
     _has_device: PhantomData<D>,
     _has_swapchain: PhantomData<S>,
+    _has_cmd_graphics: PhantomData<CG>,
+    _has_cmd_compute: PhantomData<CC>,
+    _has_cmd_transfer: PhantomData<CT>,
+    _has_cmd_sparse: PhantomData<CS>,
+    _has_cmd_protected: PhantomData<CP>,
 }
 
-impl Default for BaseConfig<Absent, Absent> {
+impl Default for BaseConfig<Absent, Absent, Absent, Absent, Absent, Absent, Absent> {
     fn default() -> Self {
         Self {
             app_name: CString::from(c"No Name"),
@@ -66,6 +92,11 @@ impl Default for BaseConfig<Absent, Absent> {
             command_pools: Default::default(),
             _has_device: PhantomData,
             _has_swapchain: PhantomData,
+            _has_cmd_graphics: PhantomData,
+            _has_cmd_compute: PhantomData,
+            _has_cmd_transfer: PhantomData,
+            _has_cmd_sparse: PhantomData,
+            _has_cmd_protected: PhantomData,
         }
     }
 }
@@ -78,8 +109,27 @@ impl Drop for InstanceInfo {
     }
 }
 
-impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
-    fn cast<D2: Store<DeviceInfo>, S2: Store<SwapchainInfo>>(self) -> BaseConfig<D2, S2> {
+impl<
+    D: Store<DeviceInfo>,
+    S: Store<SwapchainInfo>,
+    CG: Store<command::CommandPoolInfo<families::Graphics>>,
+    CC: Store<command::CommandPoolInfo<families::Compute>>,
+    CT: Store<command::CommandPoolInfo<families::Transfer>>,
+    CS: Store<command::CommandPoolInfo<families::Sparse>>,
+    CP: Store<command::CommandPoolInfo<families::Protected>>,
+> BaseConfig<D, S, CG, CC, CT, CS, CP>
+{
+    fn cast<
+        D2: Store<DeviceInfo>,
+        S2: Store<SwapchainInfo>,
+        CG2: Store<command::CommandPoolInfo<families::Graphics>>,
+        CC2: Store<command::CommandPoolInfo<families::Compute>>,
+        CT2: Store<command::CommandPoolInfo<families::Transfer>>,
+        CS2: Store<command::CommandPoolInfo<families::Sparse>>,
+        CP2: Store<command::CommandPoolInfo<families::Protected>>,
+    >(
+        self,
+    ) -> BaseConfig<D2, S2, CG2, CC2, CT2, CS2, CP2> {
         BaseConfig {
             app_name: self.app_name,
             version: self.version,
@@ -92,17 +142,29 @@ impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
             command_pools: self.command_pools,
             _has_device: PhantomData,
             _has_swapchain: PhantomData,
+            _has_cmd_graphics: PhantomData,
+            _has_cmd_compute: PhantomData,
+            _has_cmd_transfer: PhantomData,
+            _has_cmd_sparse: PhantomData,
+            _has_cmd_protected: PhantomData,
         }
     }
 }
 
-impl<D: Store<DeviceInfo, Stored = DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S>
+impl<
+    D: Store<DeviceInfo, Stored = DeviceInfo>,
+    S: Store<SwapchainInfo>,
+    CG: Store<command::CommandPoolInfo<families::Graphics>>,
+    CC: Store<command::CommandPoolInfo<families::Compute>>,
+    CT: Store<command::CommandPoolInfo<families::Transfer>>,
+    CS: Store<command::CommandPoolInfo<families::Sparse>>,
+    CP: Store<command::CommandPoolInfo<families::Protected>>,
+> BaseConfig<D, S, CG, CC, CT, CS, CP>
 where
     D: BuildDevice<D>,
     S: BuildSwapchain<S>,
 {
-    #[must_use]
-    pub fn build(mut self) -> Result<Base<D, S>, vk::Result> {
+    pub fn build(mut self) -> Result<Base<D, S, CG, CC, CT, CS, CP>, vk::Result> {
         let entry = unsafe { ash::Entry::load().expect("Failed to load Entry") };
         let app_info = vk::ApplicationInfo::default()
             .application_name(self.app_name.as_c_str())
@@ -147,11 +209,25 @@ where
             device,
             instance: InstanceInfo(instance),
             entry,
+            cmd_graphics: todo!(),
+            cmd_compute: todo!(),
+            cmd_transfer: todo!(),
+            cmd_sparse: todo!(),
+            cmd_protected: todo!(),
         })
     }
 }
 
-impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
+impl<
+    D: Store<DeviceInfo>,
+    S: Store<SwapchainInfo>,
+    CG: Store<command::CommandPoolInfo<families::Graphics>>,
+    CC: Store<command::CommandPoolInfo<families::Compute>>,
+    CT: Store<command::CommandPoolInfo<families::Transfer>>,
+    CS: Store<command::CommandPoolInfo<families::Sparse>>,
+    CP: Store<command::CommandPoolInfo<families::Protected>>,
+> BaseConfig<D, S, CG, CC, CT, CS, CP>
+{
     pub fn with_app_name(mut self, name: CString) -> Self {
         self.app_name = name;
         self
@@ -167,7 +243,7 @@ impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
     pub fn with_device(
         mut self,
         configure: fn(PhysicalDeviceSelector) -> PhysicalDeviceSelector,
-    ) -> BaseConfig<Present, S> {
+    ) -> BaseConfig<Present, S, CG, CC, CT, CS, CP> {
         self.physical_device = Some(configure(Default::default()));
         self.cast()
     }
@@ -179,7 +255,15 @@ impl<D: Store<DeviceInfo>, S: Store<SwapchainInfo>> BaseConfig<D, S> {
     }
 }
 
-impl<S: Store<SwapchainInfo>> BaseConfig<Present, S> {
+impl<
+    S: Store<SwapchainInfo>,
+    CG: Store<command::CommandPoolInfo<families::Graphics>>,
+    CC: Store<command::CommandPoolInfo<families::Compute>>,
+    CT: Store<command::CommandPoolInfo<families::Transfer>>,
+    CS: Store<command::CommandPoolInfo<families::Sparse>>,
+    CP: Store<command::CommandPoolInfo<families::Protected>>,
+> BaseConfig<Present, S, CG, CC, CT, CS, CP>
+{
     pub fn with_device_extensions(mut self, extensions: Vec<CString>) -> Self {
         self.device_extensions = extensions;
         self
@@ -199,11 +283,18 @@ impl<S: Store<SwapchainInfo>> BaseConfig<Present, S> {
         self
     }
 }
-impl BaseConfig<Present, Absent> {
+impl<
+    CG: Store<command::CommandPoolInfo<families::Graphics>>,
+    CC: Store<command::CommandPoolInfo<families::Compute>>,
+    CT: Store<command::CommandPoolInfo<families::Transfer>>,
+    CS: Store<command::CommandPoolInfo<families::Sparse>>,
+    CP: Store<command::CommandPoolInfo<families::Protected>>,
+> BaseConfig<Present, Absent, CG, CC, CT, CS, CP>
+{
     pub fn with_swapchain(
         mut self,
         configure: fn(SwapchainConfig) -> SwapchainConfig,
-    ) -> BaseConfig<Present, Present> {
+    ) -> BaseConfig<Present, Present, CG, CC, CT, CS, CP> {
         self.swapchain = Some(configure(Default::default()));
         self.cast()
     }
