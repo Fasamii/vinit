@@ -5,6 +5,7 @@ use ash::{self, khr, vk};
 use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 mod command;
 mod families;
@@ -28,21 +29,18 @@ struct InstanceInfo(ash::Instance);
 
 /* TODO: Make some universal command pools struct which holds optionally all the command
 pools using Field type */
-pub struct Base<
+pub struct Base<D, S, CG, CC, CT, CS, CP>
+where
     D: Store<DeviceInfo>,
     S: Store<SwapchainInfo>,
-    CG: Store<command::CommandPoolInfo<families::Graphics>>,
-    CC: Store<command::CommandPoolInfo<families::Compute>>,
-    CT: Store<command::CommandPoolInfo<families::Transfer>>,
-    CS: Store<command::CommandPoolInfo<families::Sparse>>,
-    CP: Store<command::CommandPoolInfo<families::Protected>>,
-> {
+    CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
+    CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
+    CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
+    CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
+    CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
+{
     swapchain: Field<S, SwapchainInfo>,
-    cmd_graphics: Field<CG, command::CommandPoolInfo<families::Graphics>>,
-    cmd_compute: Field<CC, command::CommandPoolInfo<families::Compute>>,
-    cmd_transfer: Field<CT, command::CommandPoolInfo<families::Transfer>>,
-    cmd_sparse: Field<CS, command::CommandPoolInfo<families::Sparse>>,
-    cmd_protected: Field<CP, command::CommandPoolInfo<families::Protected>>,
+    command_pools: command::CommandPools<CG, CC, CT, CS, CP>,
     device: Field<D, DeviceInfo>,
     instance: InstanceInfo,
     entry: ash::Entry,
@@ -51,11 +49,11 @@ pub struct Base<
 pub struct BaseConfig<
     D: Store<DeviceInfo>,
     S: Store<SwapchainInfo>,
-    CG: Store<command::CommandPoolInfo<families::Graphics>>,
-    CC: Store<command::CommandPoolInfo<families::Compute>>,
-    CT: Store<command::CommandPoolInfo<families::Transfer>>,
-    CS: Store<command::CommandPoolInfo<families::Sparse>>,
-    CP: Store<command::CommandPoolInfo<families::Protected>>,
+    CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
+    CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
+    CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
+    CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
+    CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
 > {
     app_name: CString,
     version: (u32, u32, u32),
@@ -109,21 +107,21 @@ impl Drop for InstanceInfo {
 impl<
     D: Store<DeviceInfo>,
     S: Store<SwapchainInfo>,
-    CG: Store<command::CommandPoolInfo<families::Graphics>>,
-    CC: Store<command::CommandPoolInfo<families::Compute>>,
-    CT: Store<command::CommandPoolInfo<families::Transfer>>,
-    CS: Store<command::CommandPoolInfo<families::Sparse>>,
-    CP: Store<command::CommandPoolInfo<families::Protected>>,
+    CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
+    CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
+    CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
+    CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
+    CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
 > BaseConfig<D, S, CG, CC, CT, CS, CP>
 {
     fn cast<
         D2: Store<DeviceInfo>,
         S2: Store<SwapchainInfo>,
-        CG2: Store<command::CommandPoolInfo<families::Graphics>>,
-        CC2: Store<command::CommandPoolInfo<families::Compute>>,
-        CT2: Store<command::CommandPoolInfo<families::Transfer>>,
-        CS2: Store<command::CommandPoolInfo<families::Sparse>>,
-        CP2: Store<command::CommandPoolInfo<families::Protected>>,
+        CG2: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
+        CC2: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
+        CT2: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
+        CS2: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
+        CP2: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
     >(
         self,
     ) -> BaseConfig<D2, S2, CG2, CC2, CT2, CS2, CP2> {
@@ -151,11 +149,11 @@ impl<
 impl<
     D: Store<DeviceInfo, Stored = DeviceInfo>,
     S: Store<SwapchainInfo>,
-    CG: Store<command::CommandPoolInfo<families::Graphics>>,
-    CC: Store<command::CommandPoolInfo<families::Compute>>,
-    CT: Store<command::CommandPoolInfo<families::Transfer>>,
-    CS: Store<command::CommandPoolInfo<families::Sparse>>,
-    CP: Store<command::CommandPoolInfo<families::Protected>>,
+    CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
+    CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
+    CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
+    CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
+    CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
 > BaseConfig<D, S, CG, CC, CT, CS, CP>
 where
     D: BuildDevice<D>,
@@ -199,30 +197,77 @@ where
             self.required_queues,
         )?;
 
+        let command_pools =
+            Self::build_command_pools(&instance, &device, &self.command_pools).unwrap();
+
         let swapchain = S::build_swapchain(self.swapchain, &instance, &device).unwrap();
 
         Ok(Base {
             swapchain,
+            command_pools,
             device,
             instance: InstanceInfo(instance),
             entry,
-            cmd_graphics: todo!(),
-            cmd_compute: todo!(),
-            cmd_transfer: todo!(),
-            cmd_sparse: todo!(),
-            cmd_protected: todo!(),
         })
+    }
+
+    fn build_command_pools(
+        instance: &ash::Instance,
+        device: &DeviceInfo,
+        command_pools_configs: &Vec<command::CommandPoolConfigFamily>,
+    ) -> Result<command::CommandPools<CG, CC, CT, CS, CP>, vk::Result> {
+        let mut graphics = ();
+        let mut compute = ();
+        let mut transfer = ();
+        let mut sparse = ();
+        let mut protlcted = ();
+
+        for config in command_pools_configs {
+            match config {
+                command::CommandPoolConfigFamily::Graphics(command_pool_config) => {
+                    command::CommandPoolConfig::<families::Graphics>::new(
+                        command_pool_config,
+                        device,
+                    );
+                }
+                command::CommandPoolConfigFamily::Compute(command_pool_config) => {
+                    command::CommandPoolConfig::<families::Compute>::new(
+                        command_pool_config,
+                        device,
+                    );
+                }
+                command::CommandPoolConfigFamily::Transfer(command_pool_config) => {
+                    command::CommandPoolConfig::<families::Transfer>::new(
+                        command_pool_config,
+                        device,
+                    );
+                }
+                command::CommandPoolConfigFamily::Sparse(command_pool_config) => {
+                    command::CommandPoolConfig::<families::Sparse>::new(
+                        command_pool_config,
+                        device,
+                    );
+                }
+                command::CommandPoolConfigFamily::Protected(command_pool_config) => {
+                    command::CommandPoolConfig::<families::Protected>::new(
+                        command_pool_config,
+                        device,
+                    );
+                }
+            }
+        }
+        todo!("Somehow pass results from new into that struct and out");
     }
 }
 
 impl<
     D: Store<DeviceInfo>,
     S: Store<SwapchainInfo>,
-    CG: Store<command::CommandPoolInfo<families::Graphics>>,
-    CC: Store<command::CommandPoolInfo<families::Compute>>,
-    CT: Store<command::CommandPoolInfo<families::Transfer>>,
-    CS: Store<command::CommandPoolInfo<families::Sparse>>,
-    CP: Store<command::CommandPoolInfo<families::Protected>>,
+    CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
+    CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
+    CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
+    CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
+    CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
 > BaseConfig<D, S, CG, CC, CT, CS, CP>
 {
     pub fn with_app_name(mut self, name: CString) -> Self {
@@ -254,11 +299,11 @@ impl<
 
 impl<
     S: Store<SwapchainInfo>,
-    CG: Store<command::CommandPoolInfo<families::Graphics>>,
-    CC: Store<command::CommandPoolInfo<families::Compute>>,
-    CT: Store<command::CommandPoolInfo<families::Transfer>>,
-    CS: Store<command::CommandPoolInfo<families::Sparse>>,
-    CP: Store<command::CommandPoolInfo<families::Protected>>,
+    CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
+    CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
+    CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
+    CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
+    CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
 > BaseConfig<Present, S, CG, CC, CT, CS, CP>
 {
     pub fn with_device_extensions(mut self, extensions: Vec<CString>) -> Self {
@@ -281,11 +326,11 @@ impl<
     }
 }
 impl<
-    CG: Store<command::CommandPoolInfo<families::Graphics>>,
-    CC: Store<command::CommandPoolInfo<families::Compute>>,
-    CT: Store<command::CommandPoolInfo<families::Transfer>>,
-    CS: Store<command::CommandPoolInfo<families::Sparse>>,
-    CP: Store<command::CommandPoolInfo<families::Protected>>,
+    CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
+    CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
+    CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
+    CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
+    CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
 > BaseConfig<Present, Absent, CG, CC, CT, CS, CP>
 {
     pub fn with_swapchain(
@@ -367,7 +412,7 @@ impl QueueHandles<Option<vk::Queue>> {
 }
 
 pub struct DeviceInfo {
-    device: ash::Device,
+    device: Arc<ash::Device>,
     physical_info: PhysicalDeviceInfo,
     queue_handles: QueueHandles<Option<vk::Queue>>,
 }
@@ -405,7 +450,7 @@ impl DeviceInfo {
         };
         let queue_handles = QueueHandles::new(&device, required_queue_family_indices);
         Self {
-            device,
+            device: Arc::new(device),
             physical_info: physical_device_info,
             queue_handles,
         }
