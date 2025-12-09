@@ -65,7 +65,7 @@ pub struct BaseConfig<
     required_queues: families::Families<bool>,
     physical_device: Option<PhysicalDeviceSelector>,
     swapchain: Option<SwapchainConfig>,
-    command_pools: Vec<command::PoolConfig>,
+    command_pools: Vec<command::CommandPoolConfigFamily>,
     _has_device: PhantomData<D>,
     _has_swapchain: PhantomData<S>,
     _has_cmd_graphics: PhantomData<CG>,
