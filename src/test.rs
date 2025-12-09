@@ -26,12 +26,19 @@ fn main() {
         })
         .with_device_extensions([CString::from(vk::KHR_SWAPCHAIN_NAME)].into())
         .add_command_pool(|config| config.graphics_queue())
-        // .add_command_pool(|config| config.transfer_queue())
-        // .add_command_pool(|config| config.compute_queue())
+        .add_command_pool(|config| config.transfer_queue())
+        .add_command_pool(|config| config.compute_queue())
+        // .add_command_pool(|config| config.protected_queue())
         // .with_swapchain(|swapchain_config| {
         //     swapchain_config
         //         .min_img_count(12)
         //         .img_format(vk::Format::R8G8B8A8_SRGB)
         // })
         .build();
+
+    if base.is_err() {
+        eprintln!("\x1b[38;5;1m[ERR]::[Failed to initialize vulkan]\x1b[0m");
+    } else {
+        println!("\x1b[38;5;2m[OK]::[Initialization was succesfull]\x1b[0m");
+    }
 }

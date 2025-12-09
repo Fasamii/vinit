@@ -102,7 +102,7 @@ where
     S: BuildSwapchain<S>,
 {
     #[must_use]
-    pub fn build(mut self) -> Base<D, S> {
+    pub fn build(mut self) -> Result<Base<D, S>, vk::Result> {
         let entry = unsafe { ash::Entry::load().expect("Failed to load Entry") };
         let app_info = vk::ApplicationInfo::default()
             .application_name(self.app_name.as_c_str())
@@ -138,18 +138,16 @@ where
             &instance,
             self.device_extensions.clone(),
             self.required_queues,
-        )
-        // TODO: Handle errors properly instead of calling unwrap everywhere (FRFR )
-        .unwrap();
+        )?;
 
         let swapchain = S::build_swapchain(self.swapchain, &instance, &device).unwrap();
 
-        Base {
+        Ok(Base {
             swapchain,
             device,
             instance: InstanceInfo(instance),
             entry,
-        }
+        })
     }
 }
 
@@ -243,7 +241,7 @@ impl BuildDevice<Present> for Present {
             .require_extensions(extensions)
             .require_queues(required_queues)
             .select(instance)
-            .expect("Implement - error handling");
+            .ok_or(vk::Result::ERROR_INITIALIZATION_FAILED)?;
         let device_info = DeviceInfo::new(physical_device_info, required_queues, instance);
         Ok(device_info)
     }
@@ -297,8 +295,6 @@ impl DeviceInfo {
             .filter_required(&required_queues);
         let queue_create_info = required_queue_family_indices.make_create_info(&[1.0f32]);
 
-        println!("queue_create_info = {queue_create_info:#?}");
-
         let device_extensions_raw: Vec<*const i8> = physical_device_info
             .enabled_extensions
             .iter()
@@ -308,6 +304,8 @@ impl DeviceInfo {
             .enabled_features(&physical_device_info.enabled_features)
             .enabled_extension_names(&device_extensions_raw)
             .queue_create_infos(&queue_create_info);
+        println!("device_create_info = {device_create_info:#?}");
+
         let device = unsafe {
             instance
                 .create_device(
