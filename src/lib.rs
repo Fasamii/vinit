@@ -46,7 +46,8 @@ where
     entry: ash::Entry,
 }
 
-pub struct BaseConfig<
+pub struct BaseConfig<D, S, CG, CC, CT, CS, CP>
+where
     D: Store<DeviceInfo>,
     S: Store<SwapchainInfo>,
     CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
@@ -54,7 +55,7 @@ pub struct BaseConfig<
     CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
     CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
     CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
-> {
+{
     app_name: CString,
     version: (u32, u32, u32),
     instance_extensions: Vec<CString>,
@@ -104,7 +105,8 @@ impl Drop for InstanceInfo {
     }
 }
 
-impl<
+impl<D, S, CG, CC, CT, CS, CP> BaseConfig<D, S, CG, CC, CT, CS, CP>
+where
     D: Store<DeviceInfo>,
     S: Store<SwapchainInfo>,
     CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
@@ -112,7 +114,6 @@ impl<
     CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
     CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
     CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
-> BaseConfig<D, S, CG, CC, CT, CS, CP>
 {
     fn cast<
         D2: Store<DeviceInfo>,
@@ -146,9 +147,10 @@ impl<
     }
 }
 
-impl<
-    D: Store<DeviceInfo, Stored = DeviceInfo>,
-    S: Store<SwapchainInfo>,
+impl<D, S, CG, CC, CT, CS, CP> BaseConfig<D, S, CG, CC, CT, CS, CP>
+where
+    D: Store<DeviceInfo, Stored = DeviceInfo> + BuildDevice<D>,
+    S: Store<SwapchainInfo> + BuildSwapchain<S>,
     CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>
         + command::BuildCommandPools<families::Graphics, CG>,
     CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>
@@ -159,10 +161,6 @@ impl<
         + command::BuildCommandPools<families::Sparse, CS>,
     CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>
         + command::BuildCommandPools<families::Protected, CP>,
-> BaseConfig<D, S, CG, CC, CT, CS, CP>
-where
-    D: BuildDevice<D>,
-    S: BuildSwapchain<S>,
 {
     pub fn build(mut self) -> Result<Base<D, S, CG, CC, CT, CS, CP>, vk::Result> {
         let entry = unsafe { ash::Entry::load().expect("Failed to load Entry") };
@@ -278,7 +276,8 @@ where
     }
 }
 
-impl<
+impl<D, S, CG, CC, CT, CS, CP> BaseConfig<D, S, CG, CC, CT, CS, CP>
+where
     D: Store<DeviceInfo>,
     S: Store<SwapchainInfo>,
     CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
@@ -286,7 +285,6 @@ impl<
     CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
     CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
     CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
-> BaseConfig<D, S, CG, CC, CT, CS, CP>
 {
     pub fn with_app_name(mut self, name: CString) -> Self {
         self.app_name = name;
@@ -315,21 +313,21 @@ impl<
     }
 }
 
-impl<
+impl<S, CG, CC, CT, CS, CP> BaseConfig<Present, S, CG, CC, CT, CS, CP>
+where
     S: Store<SwapchainInfo>,
     CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
     CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
     CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
     CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
     CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
-> BaseConfig<Present, S, CG, CC, CT, CS, CP>
 {
     pub fn with_device_extensions(mut self, extensions: Vec<CString>) -> Self {
         self.device_extensions = extensions;
         self
     }
 
-    pub fn add_graphics_pool(
+    pub fn with_graphics_pool(
         mut self,
         configure: fn(
             command::CommandPoolConfig<families::Graphics>,
@@ -341,7 +339,7 @@ impl<
         self.cast()
     }
 
-    pub fn add_compute_pool(
+    pub fn with_compute_pool(
         mut self,
         configure: fn(
             command::CommandPoolConfig<families::Compute>,
@@ -353,7 +351,7 @@ impl<
         self.cast()
     }
 
-    pub fn add_transfer_pool(
+    pub fn with_transfer_pool(
         mut self,
         configure: fn(
             command::CommandPoolConfig<families::Transfer>,
@@ -365,7 +363,7 @@ impl<
         self.cast()
     }
 
-    pub fn add_sparse_pool(
+    pub fn with_sparse_pool(
         mut self,
         configure: fn(
             command::CommandPoolConfig<families::Sparse>,
@@ -377,7 +375,7 @@ impl<
         self.cast()
     }
 
-    pub fn add_protected_pool(
+    pub fn with_protected_pool(
         mut self,
         configure: fn(
             command::CommandPoolConfig<families::Protected>,
@@ -389,13 +387,13 @@ impl<
         self.cast()
     }
 }
-impl<
+impl<CG, CC, CT, CS, CP> BaseConfig<Present, Absent, CG, CC, CT, CS, CP>
+where
     CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
     CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
     CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
     CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
     CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
-> BaseConfig<Present, Absent, CG, CC, CT, CS, CP>
 {
     pub fn with_swapchain(
         mut self,
