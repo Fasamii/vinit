@@ -6,9 +6,6 @@ use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 
-use crate::command::{CommandPoolConfig, PoolConfig};
-use crate::families::Families;
-
 mod command;
 mod families;
 mod mass;
@@ -275,10 +272,10 @@ impl<
         configure: fn(command::CommandPoolConfig<Q>) -> command::CommandPoolConfig<Q>,
     ) -> Self
     where
-        PoolConfig: From<CommandPoolConfig<Q>>,
+        command::CommandPoolConfigFamily: From<command::CommandPoolConfig<Q>>,
     {
         self.required_queues.set::<Q>(true);
-        let config = configure(CommandPoolConfig::default());
+        let config = configure(command::CommandPoolConfig::default());
         self.command_pools.push(config.into());
         self
     }

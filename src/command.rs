@@ -69,7 +69,7 @@ impl<Q: families::QueueFamily> CommandPoolConfig<Q> {
     }
 }
 
-pub enum PoolConfig {
+pub enum CommandPoolConfigFamily {
     Graphics(CommandPoolConfig<families::Graphics>),
     Compute(CommandPoolConfig<families::Compute>),
     Transfer(CommandPoolConfig<families::Transfer>),
@@ -77,32 +77,32 @@ pub enum PoolConfig {
     Protected(CommandPoolConfig<families::Protected>),
 }
 
-impl From<CommandPoolConfig<families::Graphics>> for PoolConfig {
+impl From<CommandPoolConfig<families::Graphics>> for CommandPoolConfigFamily {
     fn from(config: CommandPoolConfig<families::Graphics>) -> Self {
-        PoolConfig::Graphics(config)
+        CommandPoolConfigFamily::Graphics(config)
     }
 }
 
-impl From<CommandPoolConfig<families::Compute>> for PoolConfig {
+impl From<CommandPoolConfig<families::Compute>> for CommandPoolConfigFamily {
     fn from(config: CommandPoolConfig<families::Compute>) -> Self {
-        PoolConfig::Compute(config)
+        CommandPoolConfigFamily::Compute(config)
     }
 }
 
-impl From<CommandPoolConfig<families::Transfer>> for PoolConfig {
+impl From<CommandPoolConfig<families::Transfer>> for CommandPoolConfigFamily {
     fn from(config: CommandPoolConfig<families::Transfer>) -> Self {
-        PoolConfig::Transfer(config)
+        CommandPoolConfigFamily::Transfer(config)
     }
 }
 
-impl From<CommandPoolConfig<families::Sparse>> for PoolConfig {
+impl From<CommandPoolConfig<families::Sparse>> for CommandPoolConfigFamily {
     fn from(config: CommandPoolConfig<families::Sparse>) -> Self {
-        PoolConfig::Sparse(config)
+        CommandPoolConfigFamily::Sparse(config)
     }
 }
 
-impl From<CommandPoolConfig<families::Protected>> for PoolConfig {
+impl From<CommandPoolConfig<families::Protected>> for CommandPoolConfigFamily {
     fn from(config: CommandPoolConfig<families::Protected>) -> Self {
-        PoolConfig::Protected(config)
+        CommandPoolConfigFamily::Protected(config)
     }
 }
