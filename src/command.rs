@@ -119,24 +119,6 @@ impl<Q: families::QueueFamily> CommandPoolConfig<Q> {
 }
 
 impl<Q: families::QueueFamily> CommandPoolConfig<Q> {
-    pub fn graphics_queue(mut self) -> CommandPoolConfig<families::Graphics> {
-        self.cast()
-    }
-    pub fn compute_queue(mut self) -> CommandPoolConfig<families::Compute> {
-        self.cast()
-    }
-    pub fn transfer_queue(mut self) -> CommandPoolConfig<families::Transfer> {
-        self.cast()
-    }
-    pub fn sparse_queue(mut self) -> CommandPoolConfig<families::Sparse> {
-        self.cast()
-    }
-    pub fn protected_queue(mut self) -> CommandPoolConfig<families::Protected> {
-        self.cast()
-    }
-}
-
-impl<Q: families::QueueFamily> CommandPoolConfig<Q> {
     pub fn require_flags(mut self, flags: vk::CommandPoolCreateFlags) -> Self {
         self.flags = flags;
         self

@@ -25,9 +25,9 @@ fn main() {
                 .prefer_best(true)
         })
         .with_device_extensions([CString::from(vk::KHR_SWAPCHAIN_NAME)].into())
-        .add_graphics_pool(|config| config.graphics_queue())
-        .add_transfer_pool(|config| config.transfer_queue())
-        .add_compute_pool(|config| config.compute_queue())
+        .with_graphics_pool(|config| config)
+        .with_transfer_pool(|config| config)
+        .with_compute_pool(|config| config)
         // .add_command_pool(|config| config.protected_queue())
         // .with_swapchain(|swapchain_config| {
         //     swapchain_config
