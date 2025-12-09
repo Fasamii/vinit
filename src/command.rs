@@ -1,8 +1,42 @@
 use ash::vk;
+use std::marker::PhantomData;
 use std::sync::Arc;
-use std::{marker::PhantomData, process::Command};
 
-use crate::{DeviceInfo, Field, Store, command, families};
+use crate::{Absent, DeviceInfo, Field, Present, Store, command, families};
+
+pub trait BuildCommandPools<Q: families::QueueFamily, S: Store<Vec<CommandPoolInfo<Q>>>> {
+    fn build_pools(
+        configs: Vec<&command::CommandPoolConfig<Q>>,
+        device: &DeviceInfo,
+    ) -> Result<S::Stored, vk::Result>;
+}
+
+impl<Q: families::QueueFamily> BuildCommandPools<Q, Absent> for Absent {
+    fn build_pools(
+        configs: Vec<&command::CommandPoolConfig<Q>>,
+        device: &DeviceInfo,
+    ) -> Result<(), vk::Result> {
+        if !configs.is_empty() {
+            panic!(
+                "Attempted to create {:?} command pools, but type parameter is Absent",
+                std::any::type_name::<Q>()
+            );
+        }
+        Ok(())
+    }
+}
+
+impl<Q: families::QueueFamily> BuildCommandPools<Q, Present> for Present {
+    fn build_pools(
+        configs: Vec<&command::CommandPoolConfig<Q>>,
+        device: &DeviceInfo,
+    ) -> Result<Vec<CommandPoolInfo<Q>>, vk::Result> {
+        Ok(configs
+            .into_iter()
+            .map(|config| CommandPoolInfo::new(config, device))
+            .collect::<Vec<CommandPoolInfo<Q>>>())
+    }
+}
 
 // TODO: get back to the handle idea but instead of storing all the data make it only point to the
 // data in Base struct
@@ -13,37 +47,16 @@ pub struct CommandPoolInfo<Q: families::QueueFamily> {
     _queue: PhantomData<Q>,
 }
 
-impl<Q: families::QueueFamily> Drop for CommandPoolInfo<Q> {
-    fn drop(&mut self) {
-        unsafe {
-            self.device.queue_wait_idle(self.queue).unwrap();
-            self.device.destroy_command_pool(self.pool, None);
-        }
-    }
-}
-
-pub struct CommandPools<
-    CG: Store<Vec<CommandPoolInfo<families::Graphics>>>,
-    CC: Store<Vec<CommandPoolInfo<families::Compute>>>,
-    CT: Store<Vec<CommandPoolInfo<families::Transfer>>>,
-    CS: Store<Vec<CommandPoolInfo<families::Sparse>>>,
-    CP: Store<Vec<CommandPoolInfo<families::Protected>>>,
-> {
-    graphics: Field<CG, Vec<CommandPoolInfo<families::Graphics>>>,
-    compute: Field<CC, Vec<CommandPoolInfo<families::Compute>>>,
-    transfer: Field<CT, Vec<CommandPoolInfo<families::Transfer>>>,
-    sparse: Field<CS, Vec<CommandPoolInfo<families::Sparse>>>,
-    protected: Field<CP, Vec<CommandPoolInfo<families::Protected>>>,
-}
-
-pub struct CommandPoolConfig<Q: families::QueueFamily> {
-    flags: vk::CommandPoolCreateFlags,
-    _queue: PhantomData<Q>,
-}
-
-impl<Q: families::QueueFamily> CommandPoolConfig<Q> {
-    pub fn new(&self, device: &DeviceInfo) -> CommandPoolInfo<Q> {
-        let command_pool_create_info = vk::CommandPoolCreateInfo::default().queue_family_index(0);
+impl<Q: families::QueueFamily> CommandPoolInfo<Q> {
+    pub fn new(config: &CommandPoolConfig<Q>, device: &DeviceInfo) -> CommandPoolInfo<Q> {
+        let queue_family_index = device
+            .physical_info
+            .queue_families_indices
+            .get::<Q>()
+            .expect("Implemnt error handling");
+        let command_pool_create_info = vk::CommandPoolCreateInfo::default()
+            .flags(config.flags)
+            .queue_family_index(queue_family_index);
         let command_pool = unsafe {
             device
                 .device
@@ -57,6 +70,34 @@ impl<Q: families::QueueFamily> CommandPoolConfig<Q> {
             _queue: PhantomData,
         }
     }
+}
+
+impl<Q: families::QueueFamily> Drop for CommandPoolInfo<Q> {
+    fn drop(&mut self) {
+        unsafe {
+            self.device.queue_wait_idle(self.queue).ok();
+            self.device.destroy_command_pool(self.pool, None);
+        }
+    }
+}
+
+pub struct CommandPools<
+    CG: Store<Vec<CommandPoolInfo<families::Graphics>>>,
+    CC: Store<Vec<CommandPoolInfo<families::Compute>>>,
+    CT: Store<Vec<CommandPoolInfo<families::Transfer>>>,
+    CS: Store<Vec<CommandPoolInfo<families::Sparse>>>,
+    CP: Store<Vec<CommandPoolInfo<families::Protected>>>,
+> {
+    pub graphics: Field<CG, Vec<CommandPoolInfo<families::Graphics>>>,
+    pub compute: Field<CC, Vec<CommandPoolInfo<families::Compute>>>,
+    pub transfer: Field<CT, Vec<CommandPoolInfo<families::Transfer>>>,
+    pub sparse: Field<CS, Vec<CommandPoolInfo<families::Sparse>>>,
+    pub protected: Field<CP, Vec<CommandPoolInfo<families::Protected>>>,
+}
+
+pub struct CommandPoolConfig<Q: families::QueueFamily> {
+    flags: vk::CommandPoolCreateFlags,
+    _queue: PhantomData<Q>,
 }
 
 impl<Q: families::QueueFamily> Default for CommandPoolConfig<Q> {

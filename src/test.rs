@@ -25,9 +25,9 @@ fn main() {
                 .prefer_best(true)
         })
         .with_device_extensions([CString::from(vk::KHR_SWAPCHAIN_NAME)].into())
-        .add_command_pool(|config| config.graphics_queue())
-        .add_command_pool(|config| config.transfer_queue())
-        .add_command_pool(|config| config.compute_queue())
+        .add_graphics_pool(|config| config.graphics_queue())
+        .add_transfer_pool(|config| config.transfer_queue())
+        .add_compute_pool(|config| config.compute_queue())
         // .add_command_pool(|config| config.protected_queue())
         // .with_swapchain(|swapchain_config| {
         //     swapchain_config
@@ -37,8 +37,8 @@ fn main() {
         .build();
 
     if base.is_err() {
-        eprintln!("\x1b[38;5;1m[ERR]::[Failed to initialize vulkan]\x1b[0m");
+        eprintln!("\x1b[38;5;1m [ ERR ]::[Failed to initialize vulkan]\x1b[0m");
     } else {
-        println!("\x1b[38;5;2m[OK]::[Initialization was succesfull]\x1b[0m");
+        println!("\x1b[38;5;2m [ OK ]::[Initialization was succesfull]\x1b[0m");
     }
 }

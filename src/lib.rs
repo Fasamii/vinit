@@ -149,11 +149,16 @@ impl<
 impl<
     D: Store<DeviceInfo, Stored = DeviceInfo>,
     S: Store<SwapchainInfo>,
-    CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
-    CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
-    CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
-    CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
-    CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
+    CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>
+        + command::BuildCommandPools<families::Graphics, CG>,
+    CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>
+        + command::BuildCommandPools<families::Compute, CC>,
+    CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>
+        + command::BuildCommandPools<families::Transfer, CT>,
+    CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>
+        + command::BuildCommandPools<families::Sparse, CS>,
+    CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>
+        + command::BuildCommandPools<families::Protected, CP>,
 > BaseConfig<D, S, CG, CC, CT, CS, CP>
 where
     D: BuildDevice<D>,
@@ -216,47 +221,60 @@ where
         device: &DeviceInfo,
         command_pools_configs: &Vec<command::CommandPoolConfigFamily>,
     ) -> Result<command::CommandPools<CG, CC, CT, CS, CP>, vk::Result> {
-        let mut graphics = ();
-        let mut compute = ();
-        let mut transfer = ();
-        let mut sparse = ();
-        let mut protlcted = ();
+        let graphics_configs: Vec<_> = command_pools_configs
+            .iter()
+            .filter_map(|cfg| match cfg {
+                command::CommandPoolConfigFamily::Graphics(c) => Some(c),
+                _ => None,
+            })
+            .collect();
 
-        for config in command_pools_configs {
-            match config {
-                command::CommandPoolConfigFamily::Graphics(command_pool_config) => {
-                    command::CommandPoolConfig::<families::Graphics>::new(
-                        command_pool_config,
-                        device,
-                    );
-                }
-                command::CommandPoolConfigFamily::Compute(command_pool_config) => {
-                    command::CommandPoolConfig::<families::Compute>::new(
-                        command_pool_config,
-                        device,
-                    );
-                }
-                command::CommandPoolConfigFamily::Transfer(command_pool_config) => {
-                    command::CommandPoolConfig::<families::Transfer>::new(
-                        command_pool_config,
-                        device,
-                    );
-                }
-                command::CommandPoolConfigFamily::Sparse(command_pool_config) => {
-                    command::CommandPoolConfig::<families::Sparse>::new(
-                        command_pool_config,
-                        device,
-                    );
-                }
-                command::CommandPoolConfigFamily::Protected(command_pool_config) => {
-                    command::CommandPoolConfig::<families::Protected>::new(
-                        command_pool_config,
-                        device,
-                    );
-                }
-            }
-        }
-        todo!("Somehow pass results from new into that struct and out");
+        let compute_configs: Vec<_> = command_pools_configs
+            .iter()
+            .filter_map(|cfg| match cfg {
+                command::CommandPoolConfigFamily::Compute(c) => Some(c),
+                _ => None,
+            })
+            .collect();
+
+        // Similar for transfer, sparse, protected...
+        let transfer_configs: Vec<_> = command_pools_configs
+            .iter()
+            .filter_map(|cfg| match cfg {
+                command::CommandPoolConfigFamily::Transfer(c) => Some(c),
+                _ => None,
+            })
+            .collect();
+
+        let sparse_configs: Vec<_> = command_pools_configs
+            .iter()
+            .filter_map(|cfg| match cfg {
+                command::CommandPoolConfigFamily::Sparse(c) => Some(c),
+                _ => None,
+            })
+            .collect();
+
+        let protected_configs: Vec<_> = command_pools_configs
+            .iter()
+            .filter_map(|cfg| match cfg {
+                command::CommandPoolConfigFamily::Protected(c) => Some(c),
+                _ => None,
+            })
+            .collect();
+
+        let graphics = CG::build_pools(graphics_configs, device)?;
+        let compute = CC::build_pools(compute_configs, device)?;
+        let transfer = CT::build_pools(transfer_configs, device)?;
+        let sparse = CS::build_pools(sparse_configs, device)?;
+        let protected = CP::build_pools(protected_configs, device)?;
+
+        Ok(command::CommandPools {
+            graphics,
+            compute,
+            transfer,
+            sparse,
+            protected,
+        })
     }
 }
 
@@ -311,18 +329,64 @@ impl<
         self
     }
 
-    // TODO: turn that into lambda function like in with_device and with_swapchain
-    pub fn add_command_pool<Q: families::QueueFamily>(
+    pub fn add_graphics_pool(
         mut self,
-        configure: fn(command::CommandPoolConfig<Q>) -> command::CommandPoolConfig<Q>,
-    ) -> Self
-    where
-        command::CommandPoolConfigFamily: From<command::CommandPoolConfig<Q>>,
-    {
-        self.required_queues.set::<Q>(true);
+        configure: fn(
+            command::CommandPoolConfig<families::Graphics>,
+        ) -> command::CommandPoolConfig<families::Graphics>,
+    ) -> BaseConfig<Present, S, Present, CC, CT, CS, CP> {
+        self.required_queues.set::<families::Graphics>(true);
         let config = configure(command::CommandPoolConfig::default());
         self.command_pools.push(config.into());
-        self
+        self.cast()
+    }
+
+    pub fn add_compute_pool(
+        mut self,
+        configure: fn(
+            command::CommandPoolConfig<families::Compute>,
+        ) -> command::CommandPoolConfig<families::Compute>,
+    ) -> BaseConfig<Present, S, CG, Present, CT, CS, CP> {
+        self.required_queues.set::<families::Compute>(true);
+        let config = configure(command::CommandPoolConfig::default());
+        self.command_pools.push(config.into());
+        self.cast()
+    }
+
+    pub fn add_transfer_pool(
+        mut self,
+        configure: fn(
+            command::CommandPoolConfig<families::Transfer>,
+        ) -> command::CommandPoolConfig<families::Transfer>,
+    ) -> BaseConfig<Present, S, CG, CC, Present, CS, CP> {
+        self.required_queues.set::<families::Transfer>(true);
+        let config = configure(command::CommandPoolConfig::default());
+        self.command_pools.push(config.into());
+        self.cast()
+    }
+
+    pub fn add_sparse_pool(
+        mut self,
+        configure: fn(
+            command::CommandPoolConfig<families::Sparse>,
+        ) -> command::CommandPoolConfig<families::Sparse>,
+    ) -> BaseConfig<Present, S, CG, CC, CT, Present, CP> {
+        self.required_queues.set::<families::Sparse>(true);
+        let config = configure(command::CommandPoolConfig::default());
+        self.command_pools.push(config.into());
+        self.cast()
+    }
+
+    pub fn add_protected_pool(
+        mut self,
+        configure: fn(
+            command::CommandPoolConfig<families::Protected>,
+        ) -> command::CommandPoolConfig<families::Protected>,
+    ) -> BaseConfig<Present, S, CG, CC, CT, CS, Present> {
+        self.required_queues.set::<families::Protected>(true);
+        let config = configure(command::CommandPoolConfig::default());
+        self.command_pools.push(config.into());
+        self.cast()
     }
 }
 impl<
