@@ -198,7 +198,7 @@ where
         let device = D::build_device(
             self.physical_device,
             &instance,
-            self.device_extensions.clone(),
+            self.device_extensions,
             self.required_queues,
         )?;
 
