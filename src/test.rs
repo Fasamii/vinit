@@ -16,11 +16,7 @@ fn main() {
                 .require_features(
                     vk::PhysicalDeviceFeatures::default().draw_indirect_first_instance(true),
                 )
-                .require_properties(
-                    vk::PhysicalDeviceProperties::default()
-                        .device_name(c"")
-                        .unwrap(),
-                )
+                .require_properties(vk::PhysicalDeviceProperties::default())
                 .require_discrete(false)
                 .prefer_best(true)
         })
@@ -28,6 +24,7 @@ fn main() {
         .with_graphics_pool(|config| config)
         .with_transfer_pool(|config| config)
         .with_compute_pool(|config| config)
+        // .with_protected_pool(|config| config)
         // .add_command_pool(|config| config.protected_queue())
         // .with_swapchain(|swapchain_config| {
         //     swapchain_config
@@ -38,6 +35,9 @@ fn main() {
 
     if base.is_err() {
         eprintln!("\x1b[38;5;1m [ ERR ]::[Failed to initialize vulkan]\x1b[0m");
+        let _ = base.inspect_err(|err| {
+            eprintln!("err = {err:?}");
+        });
     } else {
         println!("\x1b[38;5;2m [ OK ]::[Initialization was succesfull]\x1b[0m");
     }

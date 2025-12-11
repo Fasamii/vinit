@@ -189,7 +189,7 @@ where
             .enabled_extension_names(&instance_extensions_raw)
             .enabled_layer_names(&layer_names_raw);
 
-        let instance = unsafe { entry.create_instance(&instance_create_info, None).unwrap() };
+        let instance = unsafe { entry.create_instance(&instance_create_info, None)? };
 
         // TODO: Pass self.device_extensions via reference and with array instead of vector also
         // convert into &CStr
@@ -200,10 +200,9 @@ where
             self.required_queues,
         )?;
 
-        let command_pools =
-            Self::build_command_pools(&instance, &device, &self.command_pools).unwrap();
+        let command_pools = Self::build_command_pools(&instance, &device, &self.command_pools)?;
 
-        let swapchain = S::build_swapchain(self.swapchain, &instance, &device).unwrap();
+        let swapchain = S::build_swapchain(self.swapchain, &instance, &device)?;
 
         Ok(Base {
             swapchain,
@@ -432,13 +431,14 @@ impl BuildDevice<Present> for Present {
         required_queues: families::Families<bool>,
     ) -> Result<DeviceInfo, vk::Result> {
         let physical_device_info = config
-            .expect("Implement - error handling")
+            .unwrap_or_else(|| {
+                panic!("Attempted to create device, while physical device selector is Absent");
+            })
             .require_extensions(extensions)
             .require_queues(required_queues)
-            .select(instance)
-            .ok_or(vk::Result::ERROR_INITIALIZATION_FAILED)?;
-        let device_info = DeviceInfo::new(physical_device_info, required_queues, instance);
-        Ok(device_info)
+            .select(instance)?
+            .ok_or(vk::Result::ERROR_FEATURE_NOT_PRESENT)?;
+        DeviceInfo::new(physical_device_info, required_queues, instance)
     }
 }
 
@@ -484,7 +484,7 @@ impl DeviceInfo {
         physical_device_info: PhysicalDeviceInfo,
         required_queues: families::Families<bool>,
         instance: &ash::Instance,
-    ) -> Self {
+    ) -> Result<Self, vk::Result> {
         let required_queue_family_indices = physical_device_info
             .queue_families_indices
             .filter_required(&required_queues);
@@ -502,20 +502,18 @@ impl DeviceInfo {
         println!("device_create_info = {device_create_info:#?}");
 
         let device = unsafe {
-            instance
-                .create_device(
-                    physical_device_info.physical_device,
-                    &device_create_info,
-                    None,
-                )
-                .expect("Implement - error handling")
+            instance.create_device(
+                physical_device_info.physical_device,
+                &device_create_info,
+                None,
+            )?
         };
         let queue_handles = QueueHandles::new(&device, required_queue_family_indices);
-        Self {
+        Ok(Self {
             device: Arc::new(device),
             physical_info: physical_device_info,
             queue_handles,
-        }
+        })
     }
 }
 
@@ -582,18 +580,22 @@ impl PhysicalDeviceSelector {
 
 // TODO: Add swapchain properties filter for device to make sure it is suitable.
 impl PhysicalDeviceSelector {
-    fn select(&self, instance: &ash::Instance) -> Option<PhysicalDeviceInfo> {
-        let physical_devices = unsafe { instance.enumerate_physical_devices().unwrap() };
-        let suitable_devices: Vec<PhysicalDeviceInfo> = physical_devices
+    fn select(&self, instance: &ash::Instance) -> Result<Option<PhysicalDeviceInfo>, vk::Result> {
+        let physical_device_handles = unsafe { instance.enumerate_physical_devices()? };
+        let physical_device_infos: Vec<PhysicalDeviceInfo> = physical_device_handles
             .into_iter()
             .map(|physical_device| {
                 PhysicalDeviceInfo::new(
                     physical_device,
                     self.required_features,
-                    self.required_extensions.clone(), // TODO: Remove that clone
+                    self.required_extensions.clone(),
                     instance,
                 )
             })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let candidates: Vec<PhysicalDeviceInfo> = physical_device_infos
+            .into_iter()
             .filter(|info| !self.require_discrete || info.is_discrete())
             .filter(|info| info.satisfies_families(self.required_queues))
             .filter(|info| info.satisfies_extensions(&self.required_extensions))
@@ -602,9 +604,9 @@ impl PhysicalDeviceSelector {
             .collect();
 
         if self.prefer_best {
-            suitable_devices.into_iter().max_by_key(|info| info.score())
+            Ok(candidates.into_iter().max_by_key(|info| info.score()))
         } else {
-            suitable_devices.into_iter().min_by_key(|info| info.score())
+            Ok(candidates.into_iter().min_by_key(|info| info.score()))
         }
     }
 }
@@ -626,8 +628,8 @@ impl PhysicalDeviceInfo {
         enabled_features: vk::PhysicalDeviceFeatures,
         enabled_extensions: Vec<CString>,
         instance: &ash::Instance,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, vk::Result> {
+        Ok(Self {
             physical_device,
             queue_families_indices: families::Families::query(instance, physical_device),
             properties: Self::get_properties(instance, physical_device),
@@ -635,8 +637,8 @@ impl PhysicalDeviceInfo {
             enabled_features,
             supproted_features: Self::get_features(instance, physical_device),
             enabled_extensions,
-            supported_extensions: Self::get_extensions(instance, physical_device),
-        }
+            supported_extensions: Self::get_extensions(instance, physical_device)?,
+        })
     }
 }
 
@@ -664,12 +666,8 @@ impl PhysicalDeviceInfo {
     fn get_extensions(
         instance: &ash::Instance,
         physical_device: vk::PhysicalDevice,
-    ) -> Vec<vk::ExtensionProperties> {
-        unsafe {
-            instance
-                .enumerate_device_extension_properties(physical_device)
-                .unwrap()
-        }
+    ) -> Result<Vec<vk::ExtensionProperties>, vk::Result> {
+        unsafe { instance.enumerate_device_extension_properties(physical_device) }
     }
 }
 
@@ -765,7 +763,7 @@ pub trait BuildSwapchain<S: Store<SwapchainInfo>> {
         config: Option<SwapchainConfig>,
         instance: &ash::Instance,
         device: &DeviceInfo,
-    ) -> Result<S::Stored, ()>;
+    ) -> Result<S::Stored, vk::Result>;
 }
 
 impl BuildSwapchain<Absent> for Absent {
@@ -773,7 +771,7 @@ impl BuildSwapchain<Absent> for Absent {
         _config: Option<SwapchainConfig>,
         _instance: &ash::Instance,
         _device: &DeviceInfo,
-    ) -> Result<(), ()> {
+    ) -> Result<(), vk::Result> {
         Ok(())
     }
 }
@@ -783,7 +781,7 @@ impl BuildSwapchain<Present> for Present {
         config: Option<SwapchainConfig>,
         instance: &ash::Instance,
         device: &DeviceInfo,
-    ) -> Result<SwapchainInfo, ()> {
+    ) -> Result<SwapchainInfo, vk::Result> {
         todo!("Implement building swapchain")
     }
 }

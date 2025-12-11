@@ -31,10 +31,10 @@ impl<Q: families::QueueFamily> BuildCommandPools<Q, Present> for Present {
         configs: Vec<&command::CommandPoolConfig<Q>>,
         device: &DeviceInfo,
     ) -> Result<Vec<CommandPoolInfo<Q>>, vk::Result> {
-        Ok(configs
+        configs
             .into_iter()
             .map(|config| CommandPoolInfo::new(config, device))
-            .collect::<Vec<CommandPoolInfo<Q>>>())
+            .collect::<Result<Vec<CommandPoolInfo<Q>>, vk::Result>>()
     }
 }
 
@@ -48,27 +48,32 @@ pub struct CommandPoolInfo<Q: families::QueueFamily> {
 }
 
 impl<Q: families::QueueFamily> CommandPoolInfo<Q> {
-    pub fn new(config: &CommandPoolConfig<Q>, device: &DeviceInfo) -> CommandPoolInfo<Q> {
+    pub fn new(
+        config: &CommandPoolConfig<Q>,
+        device: &DeviceInfo,
+    ) -> Result<CommandPoolInfo<Q>, vk::Result> {
         let queue_family_index = device
             .physical_info
             .queue_families_indices
             .get::<Q>()
-            .expect("Implemnt error handling");
+            .expect("Queue handle must exist, this is a type system guarantee");
         let command_pool_create_info = vk::CommandPoolCreateInfo::default()
             .flags(config.flags)
             .queue_family_index(queue_family_index);
         let command_pool = unsafe {
             device
                 .device
-                .create_command_pool(&command_pool_create_info, None)
-                .unwrap()
+                .create_command_pool(&command_pool_create_info, None)?
         };
-        CommandPoolInfo {
+        Ok(CommandPoolInfo {
             pool: command_pool,
             device: Arc::clone(&device.device),
-            queue: device.queue_handles.get::<Q>().unwrap(),
+            queue: device
+                .queue_handles
+                .get::<Q>()
+                .expect("Queue handle must exist, this is a type system guarantee"),
             _queue: PhantomData,
-        }
+        })
     }
 }
 
