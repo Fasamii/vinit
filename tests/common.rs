@@ -41,12 +41,11 @@ fn create_all() {
         .with_transfer_pool(|config| config)
         .with_compute_pool(|config| config)
         // .with_protected_pool(|config| config)
-        // .add_command_pool(|config| config.protected_queue())
-        // .with_swapchain(|swapchain_config| {
-        //     swapchain_config
-        //         .min_img_count(12)
-        //         .img_format(vk::Format::R8G8B8A8_SRGB)
-        // })
+        .with_swapchain(|swapchain_config| {
+            swapchain_config
+                .min_img_count(12)
+                .img_format(vk::Format::R8G8B8A8_SRGB)
+        })
         .build();
 
     if base.is_err() {

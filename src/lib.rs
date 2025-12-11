@@ -417,7 +417,7 @@ impl BuildDevice<Present> for Present {
     ) -> Result<DeviceInfo, vk::Result> {
         let physical_device_info = config
             .unwrap_or_else(|| {
-                panic!("Attempted to create device, while physical device selector is Absent");
+                panic!("Attemt to select phyiscal device withot specyfing selector");
             })
             .require_extensions(extensions)
             .require_queues(required_queues)
@@ -767,7 +767,11 @@ impl BuildSwapchain<Present> for Present {
         instance: &ash::Instance,
         device: &DeviceInfo,
     ) -> Result<SwapchainInfo, vk::Result> {
-        todo!("Implement building swapchain")
+        SwapchainInfo::new(
+            config.unwrap_or_else(|| panic!("Attempt to create swapchain withot providing config")),
+            instance,
+            device,
+        )
     }
 }
 
@@ -818,25 +822,47 @@ impl SwapchainConfig {
     }
 }
 
-impl SwapchainConfig {
-    fn build() -> SwapchainInfo {
-        SwapchainInfo {
-            swapchain: todo!(),
-            images: todo!(),
-            image_views: todo!(),
-            format: todo!(),
-            extent: todo!(),
-            image_count: todo!(),
-        }
-    }
-}
-
-#[derive(Debug)]
 pub struct SwapchainInfo {
     pub swapchain: vk::SwapchainKHR,
+    swapchain_loader: khr::swapchain::Device,
     pub images: Vec<vk::Image>,
     pub image_views: Vec<vk::ImageView>,
     pub format: vk::Format,
     pub extent: vk::Extent2D,
     pub image_count: u32,
+}
+
+impl SwapchainInfo {
+    pub fn new(
+        config: SwapchainConfig,
+        instance: &ash::Instance,
+        device: &DeviceInfo,
+    ) -> Result<Self, vk::Result> {
+        let swapchain_create_info = vk::SwapchainCreateInfoKHR::default()
+            .surface(todo!())
+            .min_image_count(todo!())
+            .image_format(todo!())
+            .image_color_space(todo!())
+            .image_extent(todo!())
+            .image_array_layers(todo!())
+            .image_usage(todo!())
+            .image_sharing_mode(todo!())
+            .pre_transform(todo!())
+            .composite_alpha(todo!())
+            .present_mode(todo!())
+            .clipped(todo!());
+        let swapchain_loader = khr::swapchain::Device::new(instance, &device.device);
+        let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None)? };
+
+        let swapchain_images = unsafe { swapchain_loader.get_swapchain_images(swapchain)? };
+    }
+}
+
+impl Drop for SwapchainInfo {
+    fn drop(&mut self) {
+        unsafe {
+            self.swapchain_loader
+                .destroy_swapchain(self.swapchain, None);
+        }
+    }
 }
