@@ -167,3 +167,36 @@ impl From<CommandPoolConfig<families::Protected>> for CommandPoolConfigFamily {
         CommandPoolConfigFamily::Protected(config)
     }
 }
+
+impl CommandPoolConfigFamily {
+    pub fn get_graphics(&self) -> Option<&CommandPoolConfig<families::Graphics>> {
+        match self {
+            CommandPoolConfigFamily::Graphics(command_pool_config) => Some(command_pool_config),
+            _ => None,
+        }
+    }
+    pub fn get_compute(&self) -> Option<&CommandPoolConfig<families::Compute>> {
+        match self {
+            CommandPoolConfigFamily::Compute(command_pool_config) => Some(command_pool_config),
+            _ => None,
+        }
+    }
+    pub fn get_transfer(&self) -> Option<&CommandPoolConfig<families::Transfer>> {
+        match self {
+            CommandPoolConfigFamily::Transfer(command_pool_config) => Some(command_pool_config),
+            _ => None,
+        }
+    }
+    pub fn get_sparse(&self) -> Option<&CommandPoolConfig<families::Sparse>> {
+        match self {
+            CommandPoolConfigFamily::Sparse(command_pool_config) => Some(command_pool_config),
+            _ => None,
+        }
+    }
+    pub fn get_protected(&self) -> Option<&CommandPoolConfig<families::Protected>> {
+        match self {
+            CommandPoolConfigFamily::Protected(command_pool_config) => Some(command_pool_config),
+            _ => None,
+        }
+    }
+}

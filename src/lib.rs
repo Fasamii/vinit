@@ -217,47 +217,31 @@ where
     fn build_command_pools(
         instance: &ash::Instance,
         device: &DeviceInfo,
-        command_pools_configs: &Vec<command::CommandPoolConfigFamily>,
+        command_pools_configs: &[command::CommandPoolConfigFamily],
     ) -> Result<command::CommandPools<CG, CC, CT, CS, CP>, vk::Result> {
         let graphics_configs: Vec<_> = command_pools_configs
             .iter()
-            .filter_map(|cfg| match cfg {
-                command::CommandPoolConfigFamily::Graphics(c) => Some(c),
-                _ => None,
-            })
+            .filter_map(|cfg| cfg.get_graphics())
             .collect();
 
         let compute_configs: Vec<_> = command_pools_configs
             .iter()
-            .filter_map(|cfg| match cfg {
-                command::CommandPoolConfigFamily::Compute(c) => Some(c),
-                _ => None,
-            })
+            .filter_map(|cfg| cfg.get_compute())
             .collect();
 
-        // Similar for transfer, sparse, protected...
         let transfer_configs: Vec<_> = command_pools_configs
             .iter()
-            .filter_map(|cfg| match cfg {
-                command::CommandPoolConfigFamily::Transfer(c) => Some(c),
-                _ => None,
-            })
+            .filter_map(|cfg| cfg.get_transfer())
             .collect();
 
         let sparse_configs: Vec<_> = command_pools_configs
             .iter()
-            .filter_map(|cfg| match cfg {
-                command::CommandPoolConfigFamily::Sparse(c) => Some(c),
-                _ => None,
-            })
+            .filter_map(|cfg| cfg.get_sparse())
             .collect();
 
         let protected_configs: Vec<_> = command_pools_configs
             .iter()
-            .filter_map(|cfg| match cfg {
-                command::CommandPoolConfigFamily::Protected(c) => Some(c),
-                _ => None,
-            })
+            .filter_map(|cfg| cfg.get_protected())
             .collect();
 
         let graphics = CG::build_pools(graphics_configs, device)?;
