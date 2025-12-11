@@ -1,8 +1,24 @@
-use ash::vk;
+use vinit::*;
 use std::ffi::CString;
+use ash::vk;
 
-fn main() {
-    #[allow(unused_variables)]
+#[test]
+fn create_empty() {
+    // let base = BaseConfig::default().with_device(|config| config).build();
+
+    // if base.is_err() {
+    //     eprintln!("\x1b[38;5;1m [ ERR ]::[Failed to initialize vulkan]\x1b[0m");
+    //     let _ = base.inspect_err(|err| {
+    //         eprintln!("err = {err:?}");
+    //     });
+    // } else {
+    //     println!("\x1b[38;5;2m [ OK ]::[Initialization was succesfull]\x1b[0m");
+    // }
+    panic!("You can't even use .build() method because of type system");
+}
+
+#[test]
+fn create_all() {
     let base = vinit::BaseConfig::default()
         .with_app_name(CString::from(c"Super Cool App"))
         .with_app_version((0, 0, 1))

@@ -3,10 +3,6 @@ name = "vinit"
 version = "0.1.0"
 edition = "2024"
 
-[[bin]]
-name = "test"
-path = "src/test.rs"
-
 [dependencies]
 ash = "0.38.0"
 ash-window = "0.13.0"

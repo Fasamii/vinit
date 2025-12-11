@@ -149,6 +149,7 @@ where
 
 impl<D, S, CG, CC, CT, CS, CP> BaseConfig<D, S, CG, CC, CT, CS, CP>
 where
+    // TODO: You cant create Base without device because Stored = DeviceInfo, fix that
     D: Store<DeviceInfo, Stored = DeviceInfo> + BuildDevice<D>,
     S: Store<SwapchainInfo> + BuildSwapchain<S>,
     CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>
