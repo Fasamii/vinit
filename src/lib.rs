@@ -7,8 +7,8 @@ use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-mod command;
-mod families;
+pub mod command;
+pub mod families;
 mod mass;
 
 pub trait Store<T> {
@@ -840,17 +840,17 @@ impl SwapchainInfo {
     ) -> Result<Self, vk::Result> {
         let swapchain_create_info = vk::SwapchainCreateInfoKHR::default()
             .surface(todo!())
-            .min_image_count(todo!())
-            .image_format(todo!())
-            .image_color_space(todo!())
-            .image_extent(todo!())
-            .image_array_layers(todo!())
-            .image_usage(todo!())
-            .image_sharing_mode(todo!())
-            .pre_transform(todo!())
-            .composite_alpha(todo!())
-            .present_mode(todo!())
-            .clipped(todo!());
+            .min_image_count(config.min_image_count)
+            .image_format(config.image_format)
+            .image_color_space(config.color_space)
+            .image_extent(config.extent)
+            .image_array_layers(config.array_layers)
+            .image_usage(config.image_usage)
+            .image_sharing_mode(config.image_sharing_mode)
+            .pre_transform(config.transforms)
+            .composite_alpha(config.composite_alpha)
+            .present_mode(config.present_mode)
+            .clipped(config.clipped);
         let swapchain_loader = khr::swapchain::Device::new(instance, &device.device);
         let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None)? };
 
