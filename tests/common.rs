@@ -4,8 +4,8 @@ use vinit::*;
 
 fn check<D, S, CG, CC, CT, CS, CP>(base: Result<Base<D, S, CG, CC, CT, CS, CP>, vk::Result>)
 where
-    D: Store<DeviceInfo>,
-    S: Store<SwapchainInfo>,
+    D: Store<device::DeviceInfo>,
+    S: Store<swapchain::SwapchainInfo>,
     CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
     CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
     CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,

@@ -2,7 +2,7 @@ use ash::vk;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use crate::{Absent, DeviceInfo, Field, Present, Store, command, families};
+use crate::{Absent, device::DeviceInfo, Field, Present, Store, command, families};
 
 pub trait BuildCommandPools<Q: families::QueueFamily, S: Store<Vec<CommandPoolInfo<Q>>>> {
     fn build_pools(
