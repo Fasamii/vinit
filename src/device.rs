@@ -10,7 +10,7 @@ pub trait BuildDevice<S: Store<DeviceInfo>> {
     fn build_device(
         config: Option<PhysicalDeviceSelector>,
         instance: &ash::Instance,
-        extensions: Vec<CString>, // TODO: Convert that earlier into &CStr and pass with []
+        extensions: Vec<CString>, // TODO: Convert that later into &CStr and pass with []
         required_queues: families::Families<bool>,
     ) -> Result<S::Stored, vk::Result>;
 }

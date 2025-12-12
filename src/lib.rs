@@ -7,11 +7,11 @@ use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
+pub mod command;
 pub mod device;
 pub mod families;
-pub mod command;
-pub mod swapchain;
 mod mass;
+pub mod swapchain;
 
 pub trait Store<T> {
     type Stored;
@@ -29,8 +29,6 @@ type Field<S, T> = <S as Store<T>>::Stored;
 
 struct InstanceInfo(ash::Instance);
 
-/* TODO: Make some universal command pools struct which holds optionally all the command
-pools using Field type */
 pub struct Base<D, S, CG, CC, CT, CS, CP>
 where
     D: Store<device::DeviceInfo>,
