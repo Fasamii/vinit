@@ -184,3 +184,31 @@ impl Families<bool> {
         *self.get::<Q>()
     }
 }
+
+impl Families<Option<vk::Queue>> {
+    pub fn new(device: &ash::Device, indices: Families<Option<u32>>) -> Self {
+        let graphics = indices
+            .graphics
+            .map(|idx| unsafe { device.get_device_queue(idx, 0) });
+        let compute = indices
+            .compute
+            .map(|idx| unsafe { device.get_device_queue(idx, 0) });
+        let transfer = indices
+            .transfer
+            .map(|idx| unsafe { device.get_device_queue(idx, 0) });
+        let sparse = indices
+            .sparse
+            .map(|idx| unsafe { device.get_device_queue(idx, 0) });
+        let protected = indices
+            .protected
+            .map(|idx| unsafe { device.get_device_queue(idx, 0) });
+
+        Self {
+            graphics,
+            compute,
+            transfer,
+            sparse,
+            protected,
+        }
+    }
+}

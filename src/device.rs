@@ -1,11 +1,10 @@
+use crate::families::Families;
+use crate::{Absent, Present, Store};
 use crate::{families, mass};
-use crate::{Store, Present, Absent};
-use ash::{vk, khr};
-use std::ffi::{CString, CStr};
+use ash::{khr, vk};
 use std::collections::HashSet;
+use std::ffi::{CStr, CString};
 use std::sync::Arc;
-
-use crate::QueueHandles;
 
 pub trait BuildDevice<S: Store<DeviceInfo>> {
     fn build_device(
@@ -46,11 +45,10 @@ impl BuildDevice<Present> for Present {
     }
 }
 
-
 pub struct DeviceInfo {
     pub device: Arc<ash::Device>,
     pub physical_info: PhysicalDeviceInfo,
-    pub queue_handles: QueueHandles<Option<vk::Queue>>,
+    pub queue_handles: families::Families<Option<vk::Queue>>,
 }
 
 impl DeviceInfo {
@@ -82,7 +80,8 @@ impl DeviceInfo {
                 None,
             )?
         };
-        let queue_handles = QueueHandles::new(&device, required_queue_family_indices);
+        let queue_handles: families::Families<Option<vk::Queue>> =
+            families::Families::new(&device, required_queue_family_indices);
         Ok(Self {
             device: Arc::new(device),
             physical_info: physical_device_info,

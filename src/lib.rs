@@ -389,34 +389,3 @@ where
         self.cast()
     }
 }
-
-// TODO: consider removing T and hardcoding vk::Queue
-type QueueHandles<T> = families::Families<T>;
-
-impl QueueHandles<Option<vk::Queue>> {
-    fn new(device: &ash::Device, indices: families::Families<Option<u32>>) -> Self {
-        let graphics = indices
-            .graphics
-            .map(|idx| unsafe { device.get_device_queue(idx, 0) });
-        let compute = indices
-            .compute
-            .map(|idx| unsafe { device.get_device_queue(idx, 0) });
-        let transfer = indices
-            .transfer
-            .map(|idx| unsafe { device.get_device_queue(idx, 0) });
-        let sparse = indices
-            .sparse
-            .map(|idx| unsafe { device.get_device_queue(idx, 0) });
-        let protected = indices
-            .protected
-            .map(|idx| unsafe { device.get_device_queue(idx, 0) });
-
-        Self {
-            graphics,
-            compute,
-            transfer,
-            sparse,
-            protected,
-        }
-    }
-}
