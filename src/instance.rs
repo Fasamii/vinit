@@ -10,29 +10,22 @@ use ash::vk;
 use std::ffi::CString;
 use std::marker::PhantomData;
 
-pub trait CreateInstance<S: Store<Instance>> {
-    fn create_instance(
-        config: S::Stored,
-        entry: &ash::Entry,
-    ) -> Result<InstanceInfo, vk::Result>;
+pub trait CreateInstance<S>
+where
+    S: Store<Instance, InstanceInfo>,
+{
+    fn create(config: S::StoredConfig, entry: &ash::Entry) -> Result<S::StoredInfo, vk::Result>;
 }
 
 impl CreateInstance<Absent> for Absent {
-    fn create_instance(
-        _instance_config: (),
-        entry: &ash::Entry,
-    ) -> Result<InstanceInfo, vk::Result> {
-        Instance::default().create(entry.clone())
+    fn create(_config: (), entry: &ash::Entry) -> Result<(), vk::Result> {
+        Ok(())
     }
 }
 
 impl CreateInstance<Present> for Present {
-    fn create_instance(
-        instance_config: Instance,
-        entry: &ash::Entry,
-    ) -> Result<InstanceInfo, vk::Result> {
-        // Create with the provided Instance config
-        instance_config.create(entry.clone())
+    fn create(config: Instance, entry: &ash::Entry) -> Result<InstanceInfo, vk::Result> {
+        config.create(entry.clone())
     }
 }
 
@@ -156,33 +149,34 @@ impl Instance {
     }
 }
 
-impl<D, S, CG, CC, CT, CS, CP> Apply<BaseConfig<Absent, D, S, CG, CC, CT, CS, CP>> for Instance
+impl<D> Apply<BaseConfig<Absent, D>> for Instance
 where
-    D: Store<device::DeviceInfo>,
-    S: Store<swapchain::SwapchainInfo>,
-    CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
-    CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
-    CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
-    CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
-    CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
+    D: Store<device::Device, device::DeviceInfo>,
+    // S: Store<swapchain::SwapchainInfo>,
+    // CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
+    // CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
+    // CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
+    // CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
+    // CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
 {
-    type Out = BaseConfig<Present, D, S, CG, CC, CT, CS, CP>;
+    type Out = BaseConfig<Present, D>;
 
-    fn apply(self, config: BaseConfig<Absent, D, S, CG, CC, CT, CS, CP>) -> Self::Out {
+    fn apply(self, config: BaseConfig<Absent, D>) -> Self::Out {
         BaseConfig {
             instance: self,
-            device_extensions: config.device_extensions,
-            required_queues: config.required_queues,
-            physical_device: config.physical_device,
-            swapchain: config.swapchain,
-            command_pools: config.command_pools,
-            _has_device: PhantomData,
-            _has_swapchain: PhantomData,
-            _has_cmd_graphics: PhantomData,
-            _has_cmd_compute: PhantomData,
-            _has_cmd_transfer: PhantomData,
-            _has_cmd_sparse: PhantomData,
-            _has_cmd_protected: PhantomData,
+            device: config.device,
+            // device_extensions: config.device_extensions,
+            // required_queues: config.required_queues,
+            // physical_device: config.physical_device,
+            // swapchain: config.swapchain,
+            // command_pools: config.command_pools,
+            // _has_device: PhantomData,
+            // _has_swapchain: PhantomData,
+            // _has_cmd_graphics: PhantomData,
+            // _has_cmd_compute: PhantomData,
+            // _has_cmd_transfer: PhantomData,
+            // _has_cmd_sparse: PhantomData,
+            // _has_cmd_protected: PhantomData,
         }
     }
 }

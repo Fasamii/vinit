@@ -1,50 +1,128 @@
-use crate::families::Families;
+use crate::SatisfiesDeps;
+use crate::Unsatisfied;
+use crate::families;
+use crate::instance;
+use crate::mass;
 use crate::{Absent, Present, Store};
-use crate::{families, mass};
 use ash::{khr, vk};
 use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::sync::Arc;
 
-pub trait BuildDevice<S: Store<DeviceInfo>> {
-    fn build_device(
-        config: Option<PhysicalDeviceSelector>,
-        instance: &ash::Instance,
-        extensions: Vec<CString>, // TODO: Convert that later into &CStr and pass with []
+pub trait CreateDevice<D, I>
+where
+    D: Store<Device, DeviceInfo>,
+    I: Store<instance::Instance, instance::InstanceInfo>,
+{
+    fn create(
+        config: D::StoredConfig,
+        instance: &I::StoredInfo,
+        required_extensions: Vec<CString>,
         required_queues: families::Families<bool>,
-    ) -> Result<S::Stored, vk::Result>;
+    ) -> Result<D::StoredInfo, vk::Result>;
 }
 
-impl BuildDevice<Absent> for Absent {
-    fn build_device(
-        _config: Option<PhysicalDeviceSelector>,
-        _instance: &ash::Instance,
-        _extensions: Vec<CString>,
-        _required_queues: families::Families<bool>,
+impl<I> CreateDevice<Absent, I> for Absent
+where
+    I: Store<instance::Instance, instance::InstanceInfo>,
+{
+    fn create(
+        config: (),
+        instance: &I::StoredInfo,
+        required_extensions: Vec<CString>,
+        required_queues: families::Families<bool>,
     ) -> Result<(), vk::Result> {
         Ok(())
     }
 }
 
-impl BuildDevice<Present> for Present {
-    fn build_device(
-        config: Option<PhysicalDeviceSelector>,
-        instance: &ash::Instance,
-        extensions: Vec<CString>,
+impl<I> CreateDevice<Present, I> for Present
+where
+    I: Store<instance::Instance, instance::InstanceInfo>,
+    (): SatisfiesDeps<I, Satisfied = Unsatisfied>
+{
+    fn create(
+        config: Device,
+        instance: &I::StoredInfo,
+        required_extensions: Vec<CString>,
         required_queues: families::Families<bool>,
     ) -> Result<DeviceInfo, vk::Result> {
-        let physical_device_info = config
-            .unwrap_or_else(|| {
-                panic!("Attemt to select phyiscal device withot specyfing selector");
-            })
-            .require_extensions(extensions)
-            .require_queues(required_queues)
-            .select(instance)?
-            .ok_or(vk::Result::ERROR_FEATURE_NOT_PRESENT)?;
-        DeviceInfo::new(physical_device_info, required_queues, instance)
+        Err(vk::Result::ERROR_INITIALIZATION_FAILED)
     }
 }
 
+impl CreateDevice<Present, Present> for Present {
+    fn create(
+        config: Device,
+        instance: &instance::InstanceInfo,
+        required_extensions: Vec<CString>,
+        required_queues: families::Families<bool>,
+    ) -> Result<DeviceInfo, vk::Result> {
+        todo!("Implement Device Creation");
+    }
+}
+
+pub struct Device {
+    prefer_best: bool,
+    require_discrete: bool,
+    required_queues: families::Families<bool>,
+    required_properties: Option<vk::PhysicalDeviceProperties>,
+    required_features: Option<vk::PhysicalDeviceFeatures>,
+    required_extensions: Vec<CString>,
+}
+//
+// impl Default for Device {
+//     fn default() -> Self {
+//         Self {
+//             prefer_best: true,
+//             require_discrete: false,
+//             required_queues: Default::default(),
+//             required_properties: None,
+//             required_features: None,
+//             required_extensions: Vec::new(),
+//         }
+//     }
+// }
+//
+// pub trait BuildDevice<S: Store<DeviceInfo>> {
+//     fn build_device(
+//         config: Option<PhysicalDeviceSelector>,
+//         instance: &ash::Instance,
+//         extensions: Vec<CString>, // TODO: Convert that later into &CStr and pass with []
+//         required_queues: families::Families<bool>,
+//     ) -> Result<S::Stored, vk::Result>;
+// }
+//
+// impl BuildDevice<Absent> for Absent {
+//     fn build_device(
+//         _config: Option<PhysicalDeviceSelector>,
+//         _instance: &ash::Instance,
+//         _extensions: Vec<CString>,
+//         _required_queues: families::Families<bool>,
+//     ) -> Result<(), vk::Result> {
+//         Ok(())
+//     }
+// }
+//
+// impl BuildDevice<Present> for Present {
+//     fn build_device(
+//         config: Option<PhysicalDeviceSelector>,
+//         instance: &ash::Instance,
+//         extensions: Vec<CString>,
+//         required_queues: families::Families<bool>,
+//     ) -> Result<DeviceInfo, vk::Result> {
+//         let physical_device_info = config
+//             .unwrap_or_else(|| {
+//                 panic!("Attemt to select phyiscal device withot specyfing selector");
+//             })
+//             .require_extensions(extensions)
+//             .require_queues(required_queues)
+//             .select(instance)?
+//             .ok_or(vk::Result::ERROR_FEATURE_NOT_PRESENT)?;
+//         DeviceInfo::new(physical_device_info, required_queues, instance)
+//     }
+// }
+//
 pub struct DeviceInfo {
     pub device: Arc<ash::Device>,
     pub physical_info: PhysicalDeviceInfo,
@@ -99,90 +177,90 @@ impl Drop for DeviceInfo {
     }
 }
 
-pub struct PhysicalDeviceSelector {
-    prefer_best: bool,
-    require_discrete: bool,
-    required_queues: families::Families<bool>,
-    required_properties: vk::PhysicalDeviceProperties,
-    required_features: vk::PhysicalDeviceFeatures,
-    required_extensions: Vec<CString>,
-}
-
-impl Default for PhysicalDeviceSelector {
-    fn default() -> Self {
-        Self {
-            prefer_best: true,
-            require_discrete: false,
-            required_queues: Default::default(),
-            required_properties: Default::default(),
-            required_features: Default::default(),
-            required_extensions: Default::default(),
-        }
-    }
-}
-
-impl PhysicalDeviceSelector {
-    fn require_extensions(mut self, extensions: Vec<CString>) -> Self {
-        self.required_extensions = extensions;
-        self
-    }
-}
-
-impl PhysicalDeviceSelector {
-    pub fn prefer_best(mut self, prefer: bool) -> Self {
-        self.prefer_best = prefer;
-        self
-    }
-    pub fn require_discrete(mut self, require: bool) -> Self {
-        self.require_discrete = require;
-        self
-    }
-    pub fn require_properties(mut self, properties: vk::PhysicalDeviceProperties) -> Self {
-        self.required_properties = properties;
-        self
-    }
-    pub fn require_features(mut self, features: vk::PhysicalDeviceFeatures) -> Self {
-        self.required_features = features;
-        self
-    }
-    fn require_queues(mut self, queues: families::Families<bool>) -> Self {
-        self.required_queues = queues;
-        self
-    }
-}
-
-// TODO: Add swapchain properties filter for device to make sure it is suitable.
-impl PhysicalDeviceSelector {
-    fn select(&self, instance: &ash::Instance) -> Result<Option<PhysicalDeviceInfo>, vk::Result> {
-        let physical_device_handles = unsafe { instance.enumerate_physical_devices()? };
-        let physical_device_infos: Vec<PhysicalDeviceInfo> = physical_device_handles
-            .into_iter()
-            .map(|physical_device| {
-                PhysicalDeviceInfo::new(
-                    physical_device,
-                    self.required_features,
-                    self.required_extensions.clone(),
-                    instance,
-                )
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-
-        let candidates: Vec<PhysicalDeviceInfo> = physical_device_infos
-            .into_iter()
-            .filter(|info| !self.require_discrete || info.is_discrete())
-            .filter(|info| info.satisfies_families(self.required_queues))
-            .filter(|info| info.satisfies_extensions(&self.required_extensions))
-            .filter(|info| info.satisfies_properties(self.required_properties))
-            .filter(|info| info.satisfies_features(self.required_features))
-            .collect();
-
-        if self.prefer_best {
-            Ok(candidates.into_iter().max_by_key(|info| info.score()))
-        } else {
-            Ok(candidates.into_iter().min_by_key(|info| info.score()))
-        }
-    }
-}
+// pub struct PhysicalDeviceSelector {
+//     prefer_best: bool,
+//     require_discrete: bool,
+//     required_queues: families::Families<bool>,
+//     required_properties: vk::PhysicalDeviceProperties,
+//     required_features: vk::PhysicalDeviceFeatures,
+//     required_extensions: Vec<CString>,
+// }
+//
+// impl Default for PhysicalDeviceSelector {
+//     fn default() -> Self {
+//         Self {
+//             prefer_best: true,
+//             require_discrete: false,
+//             required_queues: Default::default(),
+//             required_properties: Default::default(),
+//             required_features: Default::default(),
+//             required_extensions: Default::default(),
+//         }
+//     }
+// }
+//
+// impl PhysicalDeviceSelector {
+//     fn require_extensions(mut self, extensions: Vec<CString>) -> Self {
+//         self.required_extensions = extensions;
+//         self
+//     }
+// }
+//
+// impl PhysicalDeviceSelector {
+//     pub fn prefer_best(mut self, prefer: bool) -> Self {
+//         self.prefer_best = prefer;
+//         self
+//     }
+//     pub fn require_discrete(mut self, require: bool) -> Self {
+//         self.require_discrete = require;
+//         self
+//     }
+//     pub fn require_properties(mut self, properties: vk::PhysicalDeviceProperties) -> Self {
+//         self.required_properties = properties;
+//         self
+//     }
+//     pub fn require_features(mut self, features: vk::PhysicalDeviceFeatures) -> Self {
+//         self.required_features = features;
+//         self
+//     }
+//     fn require_queues(mut self, queues: families::Families<bool>) -> Self {
+//         self.required_queues = queues;
+//         self
+//     }
+// }
+//
+// // TODO: Add swapchain properties filter for device to make sure it is suitable.
+// impl PhysicalDeviceSelector {
+//     fn select(&self, instance: &ash::Instance) -> Result<Option<PhysicalDeviceInfo>, vk::Result> {
+//         let physical_device_handles = unsafe { instance.enumerate_physical_devices()? };
+//         let physical_device_infos: Vec<PhysicalDeviceInfo> = physical_device_handles
+//             .into_iter()
+//             .map(|physical_device| {
+//                 PhysicalDeviceInfo::new(
+//                     physical_device,
+//                     self.required_features,
+//                     self.required_extensions.clone(),
+//                     instance,
+//                 )
+//             })
+//             .collect::<Result<Vec<_>, _>>()?;
+//
+//         let candidates: Vec<PhysicalDeviceInfo> = physical_device_infos
+//             .into_iter()
+//             .filter(|info| !self.require_discrete || info.is_discrete())
+//             .filter(|info| info.satisfies_families(self.required_queues))
+//             .filter(|info| info.satisfies_extensions(&self.required_extensions))
+//             .filter(|info| info.satisfies_properties(self.required_properties))
+//             .filter(|info| info.satisfies_features(self.required_features))
+//             .collect();
+//
+//         if self.prefer_best {
+//             Ok(candidates.into_iter().max_by_key(|info| info.score()))
+//         } else {
+//             Ok(candidates.into_iter().min_by_key(|info| info.score()))
+//         }
+//     }
+// }
 
 pub struct PhysicalDeviceInfo {
     pub physical_device: vk::PhysicalDevice,
