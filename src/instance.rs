@@ -165,6 +165,7 @@ where
         BaseConfig {
             instance: self,
             device: config.device,
+            required_queues: config.required_queues,
             // device_extensions: config.device_extensions,
             // required_queues: config.required_queues,
             // physical_device: config.physical_device,

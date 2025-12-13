@@ -37,3 +37,13 @@ fn create_instance() {
 
     check(base);
 }
+
+#[test]
+fn creating_device() {
+    let base = vinit::BaseConfig::default()
+        .with(instance::Instance::default())
+        .with(device::Device::default())
+        .build();
+
+    check(base);
+}

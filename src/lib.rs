@@ -34,6 +34,11 @@ impl<C, I> Store<C, I> for Absent {
 type FieldConfig<S, C, I> = <S as Store<C, I>>::StoredConfig;
 type FieldInfo<S, C, I> = <S as Store<C, I>>::StoredInfo;
 
+pub trait Apply<For> {
+    type Out;
+    fn apply(self, config: For) -> Self::Out;
+}
+
 pub struct Satisfied;
 pub struct Unsatisfied;
 pub trait SatisfiesDeps<DepTuple> {
@@ -47,17 +52,6 @@ impl SatisfiesDeps<()> for () {
 impl SatisfiesDeps<(instance::InstanceInfo)> for () {
     type Satisfied = Satisfied;
 }
-
-pub trait Apply<For> {
-    type Out;
-    fn apply(self, config: For) -> Self::Out;
-}
-
-// pub trait Configurable<C, I> {
-//     type StoredConfig;
-//     type StoredInfo; // or Creates
-//     fn create(...) -> ...
-// }
 
 pub struct Base<I, D>
 where
@@ -90,8 +84,9 @@ where
 {
     instance: FieldConfig<I, instance::Instance, instance::InstanceInfo>,
     device: FieldConfig<D, device::Device, device::DeviceInfo>,
+
+    required_queues: families::Families<bool>,
     // device_extensions: Vec<CString>,
-    // required_queues: families::Families<bool>,
     // physical_device: Option<device::PhysicalDeviceSelector>,
     // swapchain: Option<swapchain::SwapchainConfig>,
     // command_pools: Vec<command::CommandPoolConfigFamily>,
@@ -109,6 +104,8 @@ impl Default for BaseConfig<Absent, Absent> {
         Self {
             instance: (),
             device: (),
+
+            required_queues: Default::default(),
             // required_queues: Default::default(),
             // physical_device: None,
             // swapchain: None,
@@ -143,18 +140,7 @@ where
     pub fn build(mut self) -> Result<Base<I, D>, vk::Result> {
         let entry = unsafe { ash::Entry::load().expect("Failed to load Entry") };
         let instance = I::create(self.instance, &entry)?;
-        let device = D::create(
-            self.device,
-            &instance,
-            Vec::new(),
-            families::Families {
-                graphics: false,
-                compute: false,
-                transfer: false,
-                sparse: false,
-                protected: false,
-            },
-        )?;
+        let device = D::create(self.device, &instance, self.required_queues)?;
 
         // TODO: Pass self.device_extensions via reference and with array instead of vector also
         // convert into &CStr
