@@ -36,7 +36,15 @@ impl CreateInstance<Present> for Present {
     }
 }
 
-pub struct InstanceInfo(ash::Instance);
+pub struct InstanceInfo(pub ash::Instance);
+
+impl Drop for InstanceInfo {
+    fn drop(&mut self) {
+        unsafe {
+            self.0.destroy_instance(None);
+        }
+    }
+}
 
 pub struct Instance {
     api_version: (u32, u32, u32),
