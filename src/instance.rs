@@ -101,7 +101,7 @@ impl Instance {
 }
 
 impl Instance {
-    pub fn create(self, entry: ash::Entry) -> Result<InstanceInfo, vk::Result> {
+    fn create(self, entry: ash::Entry) -> Result<InstanceInfo, vk::Result> {
         let mut app_info =
             vk::ApplicationInfo::default().api_version(Self::make_version(self.api_version));
 
