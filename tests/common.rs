@@ -111,6 +111,8 @@ fn create_pool() {
         )
         .with(device::Device::default())
         .with(command::CommandPool::<families::Graphics>::graphics())
+        .with(command::CommandPool::<families::Compute>::compute())
+        .with(command::CommandPool::<families::Transfer>::transfer())
         .build();
 
     check(base);

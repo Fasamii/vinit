@@ -47,7 +47,7 @@ impl<Q: families::QueueFamily> CreateCommandPool<Q, Present, Present> for Presen
         configs: Vec<CommandPool<Q>>,
         device: &device::DeviceInfo,
     ) -> Result<Vec<CommandPoolInfo<Q>>, vk::Result> {
-        log::debug!("Creating CommandPoolInfo");
+        log::debug!("Creating CommandPoolInfo for {}", std::any::type_name::<Q>());
         configs
             .into_iter()
             .map(|config| config.create(device))
@@ -355,6 +355,124 @@ where
                 transfer: config.pools.transfer,
                 sparse: config.pools.sparse,
                 protected: config.pools.protected,
+            },
+        }
+    }
+}
+
+impl<CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Present, CG, CC, CT, CS, CP>>
+    for CommandPool<families::Compute>
+where
+    CG: Store<Vec<CommandPool<families::Graphics>>, Vec<CommandPoolInfo<families::Graphics>>>,
+    CC: Store<Vec<CommandPool<families::Compute>>, Vec<CommandPoolInfo<families::Compute>>>,
+    CT: Store<Vec<CommandPool<families::Transfer>>, Vec<CommandPoolInfo<families::Transfer>>>,
+    CS: Store<Vec<CommandPool<families::Sparse>>, Vec<CommandPoolInfo<families::Sparse>>>,
+    CP: Store<Vec<CommandPool<families::Protected>>, Vec<CommandPoolInfo<families::Protected>>>,
+    <CC as Store<Vec<CommandPool<families::Compute>>, Vec<CommandPoolInfo<families::Compute>>>>::StoredConfig: AppendToField<CommandPool<families::Compute>>,
+{
+    type Out = BaseConfig<Present, Present, CG, Present, CT, CS, CP>;
+    fn apply(self, config: BaseConfig<Present, Present, CG, CC, CT, CS, CP>) -> Self::Out {
+        let mut required_queues = config.required_queues;
+        required_queues.set::<families::Compute>(true);
+        let compute = config.pools.compute.append_or_create(self);
+        BaseConfig {
+            instance: config.instance,
+            device: config.device,
+            required_queues,
+            pools: CommandPools {
+                graphics: config.pools.graphics,
+                compute, 
+                transfer: config.pools.transfer,
+                sparse: config.pools.sparse,
+                protected: config.pools.protected,
+            },
+        }
+    }
+}
+
+impl<CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Present, CG, CC, CT, CS, CP>>
+    for CommandPool<families::Transfer>
+where
+    CG: Store<Vec<CommandPool<families::Graphics>>, Vec<CommandPoolInfo<families::Graphics>>>,
+    CC: Store<Vec<CommandPool<families::Compute>>, Vec<CommandPoolInfo<families::Compute>>>,
+    CT: Store<Vec<CommandPool<families::Transfer>>, Vec<CommandPoolInfo<families::Transfer>>>,
+    CS: Store<Vec<CommandPool<families::Sparse>>, Vec<CommandPoolInfo<families::Sparse>>>,
+    CP: Store<Vec<CommandPool<families::Protected>>, Vec<CommandPoolInfo<families::Protected>>>,
+    <CT as Store<Vec<CommandPool<families::Transfer>>, Vec<CommandPoolInfo<families::Transfer>>>>::StoredConfig: AppendToField<CommandPool<families::Transfer>>,
+{
+    type Out = BaseConfig<Present, Present, CG, CC, Present, CS, CP>;
+    fn apply(self, config: BaseConfig<Present, Present, CG, CC, CT, CS, CP>) -> Self::Out {
+        let mut required_queues = config.required_queues;
+        required_queues.set::<families::Transfer>(true);
+        let transfer = config.pools.transfer.append_or_create(self);
+        BaseConfig {
+            instance: config.instance,
+            device: config.device,
+            required_queues,
+            pools: CommandPools {
+                graphics: config.pools.graphics,
+                compute: config.pools.compute, 
+                transfer, 
+                sparse: config.pools.sparse,
+                protected: config.pools.protected,
+            },
+        }
+    }
+}
+impl<CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Present, CG, CC, CT, CS, CP>>
+    for CommandPool<families::Sparse>
+where
+    CG: Store<Vec<CommandPool<families::Graphics>>, Vec<CommandPoolInfo<families::Graphics>>>,
+    CC: Store<Vec<CommandPool<families::Compute>>, Vec<CommandPoolInfo<families::Compute>>>,
+    CT: Store<Vec<CommandPool<families::Transfer>>, Vec<CommandPoolInfo<families::Transfer>>>,
+    CS: Store<Vec<CommandPool<families::Sparse>>, Vec<CommandPoolInfo<families::Sparse>>>,
+    CP: Store<Vec<CommandPool<families::Protected>>, Vec<CommandPoolInfo<families::Protected>>>,
+    <CS as Store<Vec<CommandPool<families::Sparse>>, Vec<CommandPoolInfo<families::Sparse>>>>::StoredConfig: AppendToField<CommandPool<families::Sparse>>,
+{
+    type Out = BaseConfig<Present, Present, CG, CC, CT, Present, CP>;
+    fn apply(self, config: BaseConfig<Present, Present, CG, CC, CT, CS, CP>) -> Self::Out {
+        let mut required_queues = config.required_queues;
+        required_queues.set::<families::Graphics>(true);
+        let sparse = config.pools.sparse.append_or_create(self);
+        BaseConfig {
+            instance: config.instance,
+            device: config.device,
+            required_queues,
+            pools: CommandPools {
+                graphics: config.pools.graphics,
+                compute: config.pools.compute, 
+                transfer: config.pools.transfer,
+                sparse,
+                protected: config.pools.protected,
+            },
+        }
+    }
+}
+impl<CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Present, CG, CC, CT, CS, CP>>
+    for CommandPool<families::Protected>
+where
+    CG: Store<Vec<CommandPool<families::Graphics>>, Vec<CommandPoolInfo<families::Graphics>>>,
+    CC: Store<Vec<CommandPool<families::Compute>>, Vec<CommandPoolInfo<families::Compute>>>,
+    CT: Store<Vec<CommandPool<families::Transfer>>, Vec<CommandPoolInfo<families::Transfer>>>,
+    CS: Store<Vec<CommandPool<families::Sparse>>, Vec<CommandPoolInfo<families::Sparse>>>,
+    CP: Store<Vec<CommandPool<families::Protected>>, Vec<CommandPoolInfo<families::Protected>>>,
+    <CP as Store<Vec<CommandPool<families::Protected>>, Vec<CommandPoolInfo<families::Protected>>>>::StoredConfig: AppendToField<CommandPool<families::Protected>>,
+{
+    type Out = BaseConfig<Present, Present, CG, CC, CT, CS, Present>;
+    fn apply(self, config: BaseConfig<Present, Present, CG, CC, CT, CS, CP>) -> Self::Out {
+        let mut required_queues = config.required_queues;
+        required_queues.set::<families::Graphics>(true);
+        let protected = config.pools.protected.append_or_create(self);
+        BaseConfig {
+            instance: config.instance,
+            device: config.device,
+            required_queues,
+            pools: CommandPools {
+                graphics: config.pools.graphics,
+                compute: config.pools.compute, 
+                transfer: config.pools.transfer,
+                sparse: config.pools.sparse,
+                protected,             
             },
         }
     }
