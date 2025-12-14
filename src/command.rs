@@ -1,12 +1,9 @@
-use crate::Absent;
-use crate::FieldConfig;
-use crate::FieldInfo;
-use crate::SatisfiesDeps;
-use crate::Unsatisfied;
 use crate::device;
 use crate::families;
 use crate::instance;
-use crate::{Apply, BaseConfig, Present, Store};
+use crate::{Absent, FieldConfig, FieldInfo, Present, Store};
+use crate::{Apply, BaseConfig};
+use crate::{SatisfiesDeps, Unsatisfied};
 use ash::vk;
 use core::fmt;
 use std::marker::PhantomData;

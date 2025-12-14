@@ -1,12 +1,5 @@
-#![allow(unused)]
-#![allow(dead_code)]
-
-use ash::{self, khr, vk};
+use ash::{self, vk};
 use core::fmt;
-use std::collections::HashSet;
-use std::ffi::{CStr, CString};
-use std::marker::PhantomData;
-use std::sync::Arc;
 
 pub mod instance;
 
@@ -49,7 +42,7 @@ impl SatisfiesDeps<()> for () {
     type Satisfied = Unsatisfied;
 }
 
-impl SatisfiesDeps<(instance::InstanceInfo)> for () {
+impl SatisfiesDeps<instance::InstanceInfo> for () {
     type Satisfied = Satisfied;
 }
 
@@ -57,6 +50,7 @@ impl SatisfiesDeps<(device::DeviceInfo, instance::InstanceInfo)> for () {
     type Satisfied = Satisfied;
 }
 
+#[allow(unused)]
 pub struct Base<I, D, CG, CC, CT, CS, CP>
 where
     I: Store<instance::Instance, instance::InstanceInfo>,
@@ -156,7 +150,7 @@ where
             Vec<command::CommandPoolInfo<families::Protected>>,
         > + command::CreateCommandPool<families::Protected, CP, D, I>,
 {
-    pub fn build(mut self) -> Result<Base<I, D, CG, CC, CT, CS, CP>, vk::Result> {
+    pub fn build(self) -> Result<Base<I, D, CG, CC, CT, CS, CP>, vk::Result> {
         let entry = unsafe { ash::Entry::load().expect("Failed to load Entry") };
         let instance = I::create(self.instance, &entry)?;
         let device = D::create(self.device, &instance, self.required_queues)?;

@@ -1,14 +1,10 @@
-use crate::Absent;
-use crate::BaseConfig;
 use crate::command;
 use crate::device;
 use crate::families;
-use crate::instance;
-use crate::swapchain;
-use crate::{Apply, Present, Store};
+use crate::{Absent, Present, Store};
+use crate::{Apply, BaseConfig};
 use ash::vk;
 use std::ffi::CString;
-use std::marker::PhantomData;
 
 pub trait CreateInstance<S>
 where
@@ -18,7 +14,7 @@ where
 }
 
 impl CreateInstance<Absent> for Absent {
-    fn create(_config: (), entry: &ash::Entry) -> Result<(), vk::Result> {
+    fn create(_config: (), _entry: &ash::Entry) -> Result<(), vk::Result> {
         Ok(())
     }
 }
@@ -102,7 +98,7 @@ impl Instance {
 
 impl Instance {
     fn create(self, entry: ash::Entry) -> Result<InstanceInfo, vk::Result> {
-        let mut app_info =
+        let app_info =
             vk::ApplicationInfo::default().api_version(Self::make_version(self.api_version));
 
         let app_info = if let Some(ref app_name) = self.app_name {

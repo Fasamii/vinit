@@ -1,14 +1,11 @@
-use crate::Apply;
-use crate::BaseConfig;
-use crate::SatisfiesDeps;
-use crate::Unsatisfied;
 use crate::command;
 use crate::families;
 use crate::instance;
 use crate::mass;
 use crate::{Absent, Present, Store};
-use ash::{khr, vk};
-use log;
+use crate::{Apply, BaseConfig};
+use crate::{SatisfiesDeps, Unsatisfied};
+use ash::vk;
 use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::sync::Arc;
@@ -30,9 +27,9 @@ where
     I: Store<instance::Instance, instance::InstanceInfo>,
 {
     fn create(
-        config: (),
-        instance: &I::StoredInfo,
-        required_queues: families::Families<bool>,
+        _config: (),
+        _instance: &I::StoredInfo,
+        _required_queues: families::Families<bool>,
     ) -> Result<(), vk::Result> {
         Ok(())
     }
@@ -44,9 +41,9 @@ where
     (): SatisfiesDeps<I, Satisfied = Unsatisfied>,
 {
     fn create(
-        config: Device,
-        instance: &I::StoredInfo,
-        required_queues: families::Families<bool>,
+        _config: Device,
+        _instance: &I::StoredInfo,
+        _required_queues: families::Families<bool>,
     ) -> Result<DeviceInfo, vk::Result> {
         Err(vk::Result::ERROR_INITIALIZATION_FAILED)
     }
@@ -194,9 +191,8 @@ impl DeviceInfo {
             "device_create_info = {device_create_info:#?}\n queue_create_info = {queue_create_info:#?}"
         );
 
-        let device = unsafe {
-            instance.create_device(physical.physical_device, &device_create_info, None)?
-        };
+        let device =
+            unsafe { instance.create_device(physical.physical_device, &device_create_info, None)? };
         let queue_handles: families::Families<Option<vk::Queue>> =
             families::Families::new(&device, required_queue_family_indices);
         Ok(Self {

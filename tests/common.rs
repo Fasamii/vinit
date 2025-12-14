@@ -75,7 +75,7 @@ fn create_instance() {
 }
 
 #[test]
-fn creat_device() {
+fn create_device() {
     init_logger();
     let base = vinit::BaseConfig::default()
         .with(
