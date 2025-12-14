@@ -1,9 +1,37 @@
-// use ash::vk;
-// use std::marker::PhantomData;
-// use std::sync::Arc;
-//
+use crate::device;
+use crate::families;
+use crate::instance;
+use crate::{Apply, BaseConfig, Present, Store};
+use ash::vk;
+use std::marker::PhantomData;
+use std::sync::Arc;
+
+pub trait CreateCommandPool<Q: families::QueueFamily, P, D, I>
+where
+    P: Store<CommandPool<Q>, CommandPoolInfo<Q>>,
+    D: Store<device::Device, device::DeviceInfo>,
+    I: Store<instance::Instance, instance::InstanceInfo>,
+{
+    fn create(
+        config: P::StoredConfig,
+        instance: &I::StoredInfo,
+    ) -> Result<P::StoredInfo, vk::Result>;
+}
+
+pub struct CommandPool<Q: families::QueueFamily> {
+    _queue: PhantomData<Q>,
+}
+
+impl<Q: families::QueueFamily> Default for CommandPool<Q> {
+    fn default() -> Self {
+        Self {
+            _queue: PhantomData,
+        }
+    }
+}
+
 // use crate::{Absent, device::DeviceInfo, Field, Present, Store, command, families};
-//
+
 // pub trait BuildCommandPools<Q: families::QueueFamily, S: Store<Vec<CommandPoolInfo<Q>>>> {
 //     fn build_pools(
 //         configs: Vec<&command::CommandPoolConfig<Q>>,
@@ -25,7 +53,7 @@
 //         Ok(())
 //     }
 // }
-//
+
 // impl<Q: families::QueueFamily> BuildCommandPools<Q, Present> for Present {
 //     fn build_pools(
 //         configs: Vec<&command::CommandPoolConfig<Q>>,
@@ -37,16 +65,16 @@
 //             .collect::<Result<Vec<CommandPoolInfo<Q>>, vk::Result>>()
 //     }
 // }
-//
+
 // // TODO: get back to the handle idea but instead of storing all the data make it only point to the
 // // data in Base struct
-// pub struct CommandPoolInfo<Q: families::QueueFamily> {
-//     pub pool: vk::CommandPool,
-//     device: Arc<ash::Device>,
-//     queue: vk::Queue,
-//     _queue: PhantomData<Q>,
-// }
-//
+pub struct CommandPoolInfo<Q: families::QueueFamily> {
+    pub pool: vk::CommandPool,
+    device: Arc<ash::Device>,
+    queue: vk::Queue,
+    _queue: PhantomData<Q>,
+}
+
 // impl<Q: families::QueueFamily> CommandPoolInfo<Q> {
 //     pub fn new(
 //         config: &CommandPoolConfig<Q>,
@@ -76,7 +104,7 @@
 //         })
 //     }
 // }
-//
+
 // impl<Q: families::QueueFamily> Drop for CommandPoolInfo<Q> {
 //     fn drop(&mut self) {
 //         unsafe {
@@ -85,7 +113,7 @@
 //         }
 //     }
 // }
-//
+
 // pub struct CommandPools<
 //     CG: Store<Vec<CommandPoolInfo<families::Graphics>>>,
 //     CC: Store<Vec<CommandPoolInfo<families::Compute>>>,
@@ -200,3 +228,16 @@
 //         }
 //     }
 // }
+
+impl<Q: families::QueueFamily> Apply<BaseConfig<Present, Present>> for CommandPool<Q> {
+    type Out = BaseConfig<Present, Present>;
+    fn apply(self, config: BaseConfig<Present, Present>) -> Self::Out {
+        let mut required_queues = config.required_queues;
+        required_queues.set::<Q>(true);
+        BaseConfig {
+            instance: config.instance,
+            device: config.device,
+            required_queues,
+        }
+    }
+}

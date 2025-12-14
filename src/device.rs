@@ -7,6 +7,7 @@ use crate::instance;
 use crate::mass;
 use crate::{Absent, Present, Store};
 use ash::{khr, vk};
+use log;
 use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::sync::Arc;
@@ -188,7 +189,7 @@ impl DeviceInfo {
             .enabled_extension_names(&extension_ptrs)
             .queue_create_infos(&queue_create_info);
 
-        println!(
+        log::info!(
             "device_create_info = {device_create_info:#?}\n queue_create_info = {queue_create_info:#?}"
         );
 

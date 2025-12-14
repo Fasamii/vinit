@@ -115,7 +115,7 @@ pub fn satisfies_properties(
         && have.limits.max_compute_work_group_count[2]
             >= required.limits.max_compute_work_group_count[2];
 
-    // Check device type if specified (0 = OTHER means not specified)
+    // (0 = OTHER means not specified)
     let type_ok = required.device_type == vk::PhysicalDeviceType::OTHER
         || have.device_type == required.device_type;
 

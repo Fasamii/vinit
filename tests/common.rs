@@ -1,6 +1,15 @@
 use ash::vk;
 use std::ffi::CString;
+use std::sync::Once;
 use vinit::*;
+
+static INIT: Once = Once::new();
+
+fn init_logger() {
+    INIT.call_once(|| {
+        env_logger::builder().is_test(true).try_init().ok();
+    });
+}
 
 fn check<I, D>(base: Result<Base<I, D>, vk::Result>)
 where
@@ -23,12 +32,14 @@ where
 
 #[test]
 fn create_empty() {
+    init_logger();
     let base = vinit::BaseConfig::default().build();
     check(base);
 }
 
 #[test]
 fn create_instance() {
+    init_logger();
     let base = vinit::BaseConfig::default()
         .with(
             instance::Instance::default()
@@ -44,6 +55,7 @@ fn create_instance() {
 
 #[test]
 fn creating_device() {
+    init_logger();
     let base = vinit::BaseConfig::default()
         .with(
             instance::Instance::default()
@@ -64,6 +76,19 @@ fn creating_device() {
                 ),
         )
         .build();
+
+    check(base);
+}
+
+#[test]
+fn create_pool() {
+    init_logger();
+    let base = vinit::BaseConfig::default()
+        .with(instance::Instance::default())
+        .with(device::Device::default())
+        .with(command::CommandPool::<families::Graphics>::default())
+        // .with(command::CommandPoolGraphics::<families::Graphics>::default())
+    .build();
 
     check(base);
 }
