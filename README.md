@@ -10,7 +10,7 @@ manner before program even runs. Which means that:
 - invalid states.
 _ half-initialized Vulkan.
 *Are simply impossible*.
-## ✨ Features
+## Features
 - **Compile-time dependency enforcement**
   - You cannot create a `Device` without an `Instance`
 - **Type-state configuration**
