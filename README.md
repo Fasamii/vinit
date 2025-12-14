@@ -9,6 +9,7 @@ manner before program even runs. Which means that:
 - builders that panic at runtime.
 - invalid states.
 - half-initialized Vulkan.
+
 *Are simply impossible*.
 
 # Features
