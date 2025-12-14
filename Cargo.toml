@@ -2,8 +2,16 @@
 name = "vinit"
 version = "0.1.0"
 edition = "2021"
+
+description = "Zero-cost, type-safe Vulkan initialization with compile-time guarantees"
 license-file = "LICENSE"
-description = "Library for creating vulkan instance/device/command_pools"
+
+repository = "https://github.com/Fasamii/vinit"
+homepage = "https://github.com/Fasamii/vinit"
+
+readme = "README.md"
+keywords = ["vulkan", "graphics", "init", "initialization", "ash"]
+categories = ["graphics"]
 
 [dependencies]
 ash = "0.38.0"
