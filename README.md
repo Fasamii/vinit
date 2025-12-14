@@ -55,8 +55,21 @@ let base = BaseConfig::default()
                 CString::new("VK_LAYER_KHRONOS_validation").unwrap(),
             ]),
     )
-    .with(device::Device::default())
+    .with(
+        device::Device::default()
+            .require_features(
+                vk::PhysicalDeviceFeatures::default()
+                    .alpha_to_one(true)
+                    .occlusion_query_precise(true),
+            )
+            .require_properties(
+                vk::PhysicalDeviceProperties::default().limits(
+                    vk::PhysicalDeviceLimits::default()
+                        .max_fragment_combined_output_resources(1235),
+                ),
+            ),
+    )
     .with(command::CommandPool::graphics())
-    .with(command::CommandPool::compute())
-    .build()
+    .with(command::CommandPool::compute().flags(vk::CommandPoolCreateFlags::empty()))
+    .build();
 ```

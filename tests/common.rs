@@ -16,25 +16,25 @@ where
     I: Store<instance::Instance, instance::InstanceInfo>,
     D: Store<device::Device, device::DeviceInfo>,
     CG: Store<
-            Vec<command::CommandPool<families::Graphics>>,
-            Vec<command::CommandPoolInfo<families::Graphics>>,
-        >,
+        Vec<command::CommandPool<families::Graphics>>,
+        Vec<command::CommandPoolInfo<families::Graphics>>,
+    >,
     CC: Store<
-            Vec<command::CommandPool<families::Compute>>,
-            Vec<command::CommandPoolInfo<families::Compute>>,
-        >,
+        Vec<command::CommandPool<families::Compute>>,
+        Vec<command::CommandPoolInfo<families::Compute>>,
+    >,
     CT: Store<
-            Vec<command::CommandPool<families::Transfer>>,
-            Vec<command::CommandPoolInfo<families::Transfer>>,
-        >,
+        Vec<command::CommandPool<families::Transfer>>,
+        Vec<command::CommandPoolInfo<families::Transfer>>,
+    >,
     CS: Store<
-            Vec<command::CommandPool<families::Sparse>>,
-            Vec<command::CommandPoolInfo<families::Sparse>>,
-        >,
+        Vec<command::CommandPool<families::Sparse>>,
+        Vec<command::CommandPoolInfo<families::Sparse>>,
+    >,
     CP: Store<
-            Vec<command::CommandPool<families::Protected>>,
-            Vec<command::CommandPoolInfo<families::Protected>>,
-        >,
+        Vec<command::CommandPool<families::Protected>>,
+        Vec<command::CommandPoolInfo<families::Protected>>,
+    >,
 {
     // println!("{base:#?}"); // FIXME: Fix the printing problem with Base Debug.
     if base.is_err() {
@@ -104,15 +104,28 @@ fn create_device() {
 #[test]
 fn create_pool() {
     init_logger();
-    let base = vinit::BaseConfig::default()
+    let base = BaseConfig::default()
         .with(
             instance::Instance::default()
-                .validation(vec![CString::from(c"VK_LAYER_KHRONOS_validation")]),
+                .app_name(CString::new("My App").unwrap())
+                .validation(vec![CString::new("VK_LAYER_KHRONOS_validation").unwrap()]),
         )
-        .with(device::Device::default())
+        .with(
+            device::Device::default()
+                .require_features(
+                    vk::PhysicalDeviceFeatures::default()
+                        .alpha_to_one(true)
+                        .occlusion_query_precise(true),
+                )
+                .require_properties(
+                    vk::PhysicalDeviceProperties::default().limits(
+                        vk::PhysicalDeviceLimits::default()
+                            .max_fragment_combined_output_resources(1235),
+                    ),
+                ),
+        )
         .with(command::CommandPool::graphics())
-        .with(command::CommandPool::compute())
-        .with(command::CommandPool::transfer())
+        .with(command::CommandPool::compute().flags(vk::CommandPoolCreateFlags::empty()))
         .build();
 
     check(base);
