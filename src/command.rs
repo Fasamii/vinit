@@ -76,31 +76,43 @@ pub struct CommandPool<Q: families::QueueFamily> {
     _queue: PhantomData<Q>,
 }
 
-impl<Q: families::QueueFamily> CommandPool<Q> {
-    pub fn graphics() -> CommandPool<families::Graphics> {
+impl CommandPool<families::Graphics> {
+    pub fn graphics() -> CommandPool<families::Graphics>{
         CommandPool {
             flags: Default::default(),
             _queue: PhantomData,
         }
     }
-    pub fn compute() -> CommandPool<families::Compute> {
+}
+
+impl CommandPool<families::Compute> {
+    pub fn compute() -> CommandPool<families::Compute>{
         CommandPool {
             flags: Default::default(),
             _queue: PhantomData,
         }
     }
+}
+
+impl CommandPool<families::Transfer> {
     pub fn transfer() -> CommandPool<families::Transfer> {
         CommandPool {
             flags: Default::default(),
             _queue: PhantomData,
         }
     }
+}
+
+impl CommandPool<families::Sparse> {
     pub fn sparse() -> CommandPool<families::Sparse> {
         CommandPool {
             flags: Default::default(),
             _queue: PhantomData,
         }
     }
+}
+
+impl CommandPool<families::Protected> {
     pub fn protected() -> CommandPool<families::Protected> {
         CommandPool {
             flags: Default::default(),

@@ -110,9 +110,9 @@ fn create_pool() {
                 .validation(vec![CString::from(c"VK_LAYER_KHRONOS_validation")]),
         )
         .with(device::Device::default())
-        .with(command::CommandPool::<families::Graphics>::graphics())
-        .with(command::CommandPool::<families::Compute>::compute())
-        .with(command::CommandPool::<families::Transfer>::transfer())
+        .with(command::CommandPool::graphics())
+        .with(command::CommandPool::compute())
+        .with(command::CommandPool::transfer())
         .build();
 
     check(base);
