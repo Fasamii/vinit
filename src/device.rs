@@ -84,7 +84,7 @@ impl Default for Device {
 
 impl Device {
     pub fn prefer_best(mut self, prefer: bool) -> Self {
-        self.prefer_best = true;
+        self.prefer_best = prefer;
         self
     }
 
