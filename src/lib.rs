@@ -132,33 +132,33 @@ where
     CG: Store<
             Vec<command::CommandPool<families::Graphics>>,
             Vec<command::CommandPoolInfo<families::Graphics>>,
-        > + command::CreateCommandPool<families::Graphics, CG, D, I>,
+        > + command::CreateCommandPool<families::Graphics, CG, D>,
     CC: Store<
             Vec<command::CommandPool<families::Compute>>,
             Vec<command::CommandPoolInfo<families::Compute>>,
-        > + command::CreateCommandPool<families::Compute, CC, D, I>,
+        > + command::CreateCommandPool<families::Compute, CC, D>,
     CT: Store<
             Vec<command::CommandPool<families::Transfer>>,
             Vec<command::CommandPoolInfo<families::Transfer>>,
-        > + command::CreateCommandPool<families::Transfer, CT, D, I>,
+        > + command::CreateCommandPool<families::Transfer, CT, D>,
     CS: Store<
             Vec<command::CommandPool<families::Sparse>>,
             Vec<command::CommandPoolInfo<families::Sparse>>,
-        > + command::CreateCommandPool<families::Sparse, CS, D, I>,
+        > + command::CreateCommandPool<families::Sparse, CS, D>,
     CP: Store<
             Vec<command::CommandPool<families::Protected>>,
             Vec<command::CommandPoolInfo<families::Protected>>,
-        > + command::CreateCommandPool<families::Protected, CP, D, I>,
+        > + command::CreateCommandPool<families::Protected, CP, D>,
 {
     pub fn build(self) -> Result<Base<I, D, CG, CC, CT, CS, CP>, vk::Result> {
         let entry = unsafe { ash::Entry::load().expect("Failed to load Entry") };
         let instance = I::create(self.instance, &entry)?;
         let device = D::create(self.device, &instance, self.required_queues)?;
-        let pools_graphics = CG::create(self.pools.graphics, &device, &instance)?;
-        let pools_compute = CC::create(self.pools.compute, &device, &instance)?;
-        let pools_transfer = CT::create(self.pools.transfer, &device, &instance)?;
-        let pools_sparse = CS::create(self.pools.sparse, &device, &instance)?;
-        let pools_protected = CP::create(self.pools.protected, &device, &instance)?;
+        let pools_graphics = CG::create(self.pools.graphics, &device)?;
+        let pools_compute = CC::create(self.pools.compute, &device)?;
+        let pools_transfer = CT::create(self.pools.transfer, &device)?;
+        let pools_sparse = CS::create(self.pools.sparse, &device)?;
+        let pools_protected = CP::create(self.pools.protected, &device)?;
         let pools = command::CommandPoolInfos {
             graphics: pools_graphics,
             compute: pools_compute,
@@ -174,51 +174,6 @@ where
             entry,
         })
     }
-
-    // fn build_command_pools(
-    //     instance: &ash::Instance,
-    //     device: &device::DeviceInfo,
-    //     command_pools_configs: &[command::CommandPoolConfigFamily],
-    // ) -> Result<command::CommandPools<CG, CC, CT, CS, CP>, vk::Result> {
-    //     let graphics_configs: Vec<_> = command_pools_configs
-    //         .iter()
-    //         .filter_map(|cfg| cfg.get_graphics())
-    //         .collect();
-    //
-    //     let compute_configs: Vec<_> = command_pools_configs
-    //         .iter()
-    //         .filter_map(|cfg| cfg.get_compute())
-    //         .collect();
-    //
-    //     let transfer_configs: Vec<_> = command_pools_configs
-    //         .iter()
-    //         .filter_map(|cfg| cfg.get_transfer())
-    //         .collect();
-    //
-    //     let sparse_configs: Vec<_> = command_pools_configs
-    //         .iter()
-    //         .filter_map(|cfg| cfg.get_sparse())
-    //         .collect();
-    //
-    //     let protected_configs: Vec<_> = command_pools_configs
-    //         .iter()
-    //         .filter_map(|cfg| cfg.get_protected())
-    //         .collect();
-    //
-    //     let graphics = CG::build_pools(graphics_configs, device)?;
-    //     let compute = CC::build_pools(compute_configs, device)?;
-    //     let transfer = CT::build_pools(transfer_configs, device)?;
-    //     let sparse = CS::build_pools(sparse_configs, device)?;
-    //     let protected = CP::build_pools(protected_configs, device)?;
-    //
-    //     Ok(command::CommandPools {
-    //         graphics,
-    //         compute,
-    //         transfer,
-    //         sparse,
-    //         protected,
-    //     })
-    // }
 
     pub fn with<T: Apply<Self>>(self, opt: T) -> T::Out {
         opt.apply(self)

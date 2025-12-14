@@ -1,5 +1,4 @@
 use ash::vk;
-use std::marker::PhantomData;
 
 pub trait QueueFamily: Sized {
     fn access<T>(families: &Families<T>) -> &T;

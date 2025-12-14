@@ -1,6 +1,5 @@
 use crate::device;
 use crate::families;
-use crate::instance;
 use crate::{Absent, FieldConfig, FieldInfo, Present, Store};
 use crate::{Apply, BaseConfig};
 use crate::{SatisfiesDeps, Unsatisfied};
@@ -9,54 +8,46 @@ use core::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-pub trait CreateCommandPool<Q: families::QueueFamily, P, D, I>
+pub trait CreateCommandPool<Q: families::QueueFamily, P, D>
 where
     P: Store<Vec<CommandPool<Q>>, Vec<CommandPoolInfo<Q>>>,
     D: Store<device::Device, device::DeviceInfo>,
-    I: Store<instance::Instance, instance::InstanceInfo>,
 {
     fn create(
         configs: P::StoredConfig,
         device: &D::StoredInfo,
-        instance: &I::StoredInfo,
     ) -> Result<P::StoredInfo, vk::Result>;
 }
 
-impl<Q: families::QueueFamily, D, I> CreateCommandPool<Q, Absent, D, I> for Absent
+impl<Q: families::QueueFamily, D> CreateCommandPool<Q, Absent, D> for Absent
 where
     D: Store<device::Device, device::DeviceInfo>,
-    I: Store<instance::Instance, instance::InstanceInfo>,
 {
-    fn create(
-        _configs: (),
-        _device: &D::StoredInfo,
-        _instance: &I::StoredInfo,
-    ) -> Result<(), vk::Result> {
+    fn create(_configs: (), _device: &D::StoredInfo) -> Result<(), vk::Result> {
+        log::debug!("Creating () for {}", std::any::type_name::<Q>());
         Ok(())
     }
 }
 
-impl<Q: families::QueueFamily, D, I> CreateCommandPool<Q, Present, D, I> for Present
+impl<Q: families::QueueFamily, D> CreateCommandPool<Q, Present, D> for Present
 where
     D: Store<device::Device, device::DeviceInfo>,
-    I: Store<instance::Instance, instance::InstanceInfo>,
-    (): SatisfiesDeps<(D, I), Satisfied = Unsatisfied>,
+    (): SatisfiesDeps<D, Satisfied = Unsatisfied>,
 {
     fn create(
         _configs: Vec<CommandPool<Q>>,
         _device: &D::StoredInfo,
-        _instance: &I::StoredInfo,
     ) -> Result<Vec<CommandPoolInfo<Q>>, vk::Result> {
         Err(vk::Result::ERROR_INITIALIZATION_FAILED)
     }
 }
 
-impl<Q: families::QueueFamily> CreateCommandPool<Q, Present, Present, Present> for Present {
+impl<Q: families::QueueFamily> CreateCommandPool<Q, Present, Present> for Present {
     fn create(
         configs: Vec<CommandPool<Q>>,
         device: &device::DeviceInfo,
-        instance: &instance::InstanceInfo,
     ) -> Result<Vec<CommandPoolInfo<Q>>, vk::Result> {
+        log::debug!("Creating CommandPoolInfo");
         configs
             .into_iter()
             .map(|config| config.create(device))
@@ -322,6 +313,23 @@ where
 //     }
 // }
 
+trait AppendToField<T> {
+    fn append_or_create(self, item: T) -> Vec<T>;
+}
+
+impl<T> AppendToField<T> for () {
+    fn append_or_create(self, item: T) -> Vec<T> {
+        vec![item]
+    }
+}
+
+impl<T> AppendToField<T> for Vec<T> {
+    fn append_or_create(mut self, item: T) -> Vec<T> {
+        self.push(item);
+        self
+    }
+}
+
 impl<CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Present, CG, CC, CT, CS, CP>>
     for CommandPool<families::Graphics>
 where
@@ -330,16 +338,24 @@ where
     CT: Store<Vec<CommandPool<families::Transfer>>, Vec<CommandPoolInfo<families::Transfer>>>,
     CS: Store<Vec<CommandPool<families::Sparse>>, Vec<CommandPoolInfo<families::Sparse>>>,
     CP: Store<Vec<CommandPool<families::Protected>>, Vec<CommandPoolInfo<families::Protected>>>,
+    <CG as Store<Vec<CommandPool<families::Graphics>>, Vec<CommandPoolInfo<families::Graphics>>>>::StoredConfig: AppendToField<CommandPool<families::Graphics>>,
 {
-    type Out = BaseConfig<Present, Present, CG, CC, CT, CS, CP>;
+    type Out = BaseConfig<Present, Present, Present, CC, CT, CS, CP>;
     fn apply(self, config: BaseConfig<Present, Present, CG, CC, CT, CS, CP>) -> Self::Out {
         let mut required_queues = config.required_queues;
         required_queues.set::<families::Graphics>(true);
+        let graphics = config.pools.graphics.append_or_create(self);
         BaseConfig {
             instance: config.instance,
             device: config.device,
             required_queues,
-            pools: config.pools, // FIXME: you should append pool config ere
+            pools: CommandPools {
+                graphics,
+                compute: config.pools.compute,
+                transfer: config.pools.transfer,
+                sparse: config.pools.sparse,
+                protected: config.pools.protected,
+            },
         }
     }
 }
