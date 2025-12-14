@@ -8,9 +8,10 @@ validation** to ensure that Vulkan objects are created in a correct
 manner before program even runs. Which means that:
 - builders that panic at runtime.
 - invalid states.
-_ half-initialized Vulkan.
+- half-initialized Vulkan.
 *Are simply impossible*.
-## Features
+
+# Features
 - **Compile-time dependency enforcement**
   - You cannot create a `Device` without an `Instance`
 - **Type-state configuration**
@@ -21,7 +22,27 @@ _ half-initialized Vulkan.
   - Add only what you need (`Instance`, `Device`, command pools, queues)
 - **RAII-safe**
   - Vulkan objects are destroyed automatically in the correct order
-## Code Example
+
+# How It Works
+vinit uses type-state programming to track which components are present.
+
+At every step:
+- Configuration is accumulated in BaseConfig<...>. 
+- Each .with(...) consumes the previous BaseConfig and returns a new one
+
+The type system enforces:
+- ordering
+- dependencies
+- required queue families
+
+Which means that code like this
+```rust
+let base = BaseConfig::default()
+    .with(device::Device::default());
+```
+Wont even compile because device requires Instance to be present.
+
+# Usage Example
 ```rust
 use vinit::*;
 use std::ffi::CString;
@@ -39,18 +60,3 @@ let base = BaseConfig::default()
     .with(command::CommandPool::compute())
     .build()
 ```
-# How It Works
-vinit uses type-state programming to track which components are present.
-At every step:
-- Configuration is accumulated in BaseConfig<...>. 
-- Each .with(...) consumes the previous BaseConfig and returns a new one
-The type system enforces:
-- ordering
-- dependencies
-- required queue families
-Which means that code like this
-```rust
-let base = BaseConfig::default()
-    .with(device::Device::default());
-```
-Wont even compile because device requires Instance to be present
