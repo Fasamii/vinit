@@ -56,25 +56,25 @@ where
     I: Store<instance::Instance, instance::InstanceInfo>,
     D: Store<device::Device, device::DeviceInfo>,
     CG: Store<
-            Vec<command::CommandPool<families::Graphics>>,
-            Vec<command::CommandPoolInfo<families::Graphics>>,
-        >,
+        Vec<command::CommandPool<families::Graphics>>,
+        Vec<command::CommandPoolInfo<families::Graphics>>,
+    >,
     CC: Store<
-            Vec<command::CommandPool<families::Compute>>,
-            Vec<command::CommandPoolInfo<families::Compute>>,
-        >,
+        Vec<command::CommandPool<families::Compute>>,
+        Vec<command::CommandPoolInfo<families::Compute>>,
+    >,
     CT: Store<
-            Vec<command::CommandPool<families::Transfer>>,
-            Vec<command::CommandPoolInfo<families::Transfer>>,
-        >,
+        Vec<command::CommandPool<families::Transfer>>,
+        Vec<command::CommandPoolInfo<families::Transfer>>,
+    >,
     CS: Store<
-            Vec<command::CommandPool<families::Sparse>>,
-            Vec<command::CommandPoolInfo<families::Sparse>>,
-        >,
+        Vec<command::CommandPool<families::Sparse>>,
+        Vec<command::CommandPoolInfo<families::Sparse>>,
+    >,
     CP: Store<
-            Vec<command::CommandPool<families::Protected>>,
-            Vec<command::CommandPoolInfo<families::Protected>>,
-        >,
+        Vec<command::CommandPool<families::Protected>>,
+        Vec<command::CommandPoolInfo<families::Protected>>,
+    >,
 {
     pools: command::CommandPoolInfos<CG, CC, CT, CS, CP>,
     device: FieldInfo<D, device::Device, device::DeviceInfo>,
@@ -87,25 +87,25 @@ where
     I: Store<instance::Instance, instance::InstanceInfo>,
     D: Store<device::Device, device::DeviceInfo>,
     CG: Store<
-            Vec<command::CommandPool<families::Graphics>>,
-            Vec<command::CommandPoolInfo<families::Graphics>>,
-        >,
+        Vec<command::CommandPool<families::Graphics>>,
+        Vec<command::CommandPoolInfo<families::Graphics>>,
+    >,
     CC: Store<
-            Vec<command::CommandPool<families::Compute>>,
-            Vec<command::CommandPoolInfo<families::Compute>>,
-        >,
+        Vec<command::CommandPool<families::Compute>>,
+        Vec<command::CommandPoolInfo<families::Compute>>,
+    >,
     CT: Store<
-            Vec<command::CommandPool<families::Transfer>>,
-            Vec<command::CommandPoolInfo<families::Transfer>>,
-        >,
+        Vec<command::CommandPool<families::Transfer>>,
+        Vec<command::CommandPoolInfo<families::Transfer>>,
+    >,
     CS: Store<
-            Vec<command::CommandPool<families::Sparse>>,
-            Vec<command::CommandPoolInfo<families::Sparse>>,
-        >,
+        Vec<command::CommandPool<families::Sparse>>,
+        Vec<command::CommandPoolInfo<families::Sparse>>,
+    >,
     CP: Store<
-            Vec<command::CommandPool<families::Protected>>,
-            Vec<command::CommandPoolInfo<families::Protected>>,
-        >,
+        Vec<command::CommandPool<families::Protected>>,
+        Vec<command::CommandPoolInfo<families::Protected>>,
+    >,
 {
     instance: FieldConfig<I, instance::Instance, instance::InstanceInfo>,
     device: FieldConfig<D, device::Device, device::DeviceInfo>,
@@ -151,7 +151,8 @@ where
         > + command::CreateCommandPool<families::Protected, CP, D>,
 {
     pub fn build(self) -> Result<Base<I, D, CG, CC, CT, CS, CP>, vk::Result> {
-        let entry = unsafe { ash::Entry::load().expect("Failed to load Entry") };
+        let entry =
+            unsafe { ash::Entry::load().map_err(|_| vk::Result::ERROR_INITIALIZATION_FAILED)? };
         let instance = I::create(self.instance, &entry)?;
         let device = D::create(self.device, &instance, self.required_queues)?;
         let pools_graphics = CG::create(self.pools.graphics, &device)?;
@@ -185,30 +186,30 @@ where
     I: Store<instance::Instance, instance::InstanceInfo, StoredInfo = dyn fmt::Debug>,
     D: Store<device::Device, device::DeviceInfo, StoredInfo = dyn fmt::Debug>,
     CG: Store<
-            Vec<command::CommandPool<families::Graphics>>,
-            Vec<command::CommandPoolInfo<families::Graphics>>,
-            StoredInfo = dyn fmt::Debug,
-        >,
+        Vec<command::CommandPool<families::Graphics>>,
+        Vec<command::CommandPoolInfo<families::Graphics>>,
+        StoredInfo = dyn fmt::Debug,
+    >,
     CC: Store<
-            Vec<command::CommandPool<families::Compute>>,
-            Vec<command::CommandPoolInfo<families::Compute>>,
-            StoredInfo = dyn fmt::Debug,
-        >,
+        Vec<command::CommandPool<families::Compute>>,
+        Vec<command::CommandPoolInfo<families::Compute>>,
+        StoredInfo = dyn fmt::Debug,
+    >,
     CT: Store<
-            Vec<command::CommandPool<families::Transfer>>,
-            Vec<command::CommandPoolInfo<families::Transfer>>,
-            StoredInfo = dyn fmt::Debug,
-        >,
+        Vec<command::CommandPool<families::Transfer>>,
+        Vec<command::CommandPoolInfo<families::Transfer>>,
+        StoredInfo = dyn fmt::Debug,
+    >,
     CS: Store<
-            Vec<command::CommandPool<families::Sparse>>,
-            Vec<command::CommandPoolInfo<families::Sparse>>,
-            StoredInfo = dyn fmt::Debug,
-        >,
+        Vec<command::CommandPool<families::Sparse>>,
+        Vec<command::CommandPoolInfo<families::Sparse>>,
+        StoredInfo = dyn fmt::Debug,
+    >,
     CP: Store<
-            Vec<command::CommandPool<families::Protected>>,
-            Vec<command::CommandPoolInfo<families::Protected>>,
-            StoredInfo = dyn fmt::Debug,
-        >,
+        Vec<command::CommandPool<families::Protected>>,
+        Vec<command::CommandPoolInfo<families::Protected>>,
+        StoredInfo = dyn fmt::Debug,
+    >,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Base")
