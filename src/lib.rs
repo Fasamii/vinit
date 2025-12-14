@@ -53,109 +53,128 @@ impl SatisfiesDeps<(instance::InstanceInfo)> for () {
     type Satisfied = Satisfied;
 }
 
-pub struct Base<I, D>
+impl SatisfiesDeps<(device::DeviceInfo, instance::InstanceInfo)> for () {
+    type Satisfied = Satisfied;
+}
+
+pub struct Base<I, D, CG, CC, CT, CS, CP>
 where
     I: Store<instance::Instance, instance::InstanceInfo>,
     D: Store<device::Device, device::DeviceInfo>,
-    // S: Store<swapchain::SwapchainInfo>,
-    // CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
-    // CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
-    // CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
-    // CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
-    // CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
+    CG: Store<
+            Vec<command::CommandPool<families::Graphics>>,
+            Vec<command::CommandPoolInfo<families::Graphics>>,
+        >,
+    CC: Store<
+            Vec<command::CommandPool<families::Compute>>,
+            Vec<command::CommandPoolInfo<families::Compute>>,
+        >,
+    CT: Store<
+            Vec<command::CommandPool<families::Transfer>>,
+            Vec<command::CommandPoolInfo<families::Transfer>>,
+        >,
+    CS: Store<
+            Vec<command::CommandPool<families::Sparse>>,
+            Vec<command::CommandPoolInfo<families::Sparse>>,
+        >,
+    CP: Store<
+            Vec<command::CommandPool<families::Protected>>,
+            Vec<command::CommandPoolInfo<families::Protected>>,
+        >,
 {
-    // swapchain: FieldInfo<S, swapchain::Swapchain, swapchain::SwapchainInfo>,
-    // command_pools: command::CommandPools<CG, CC, CT, CS, CP>,
+    pools: command::CommandPoolInfos<CG, CC, CT, CS, CP>,
     device: FieldInfo<D, device::Device, device::DeviceInfo>,
     instance: FieldInfo<I, instance::Instance, instance::InstanceInfo>,
     entry: ash::Entry,
 }
 
-pub struct BaseConfig<I, D>
+pub struct BaseConfig<I, D, CG, CC, CT, CS, CP>
 where
     I: Store<instance::Instance, instance::InstanceInfo>,
     D: Store<device::Device, device::DeviceInfo>,
-    // S: Store<swapchain::SwapchainInfo>,
-    // CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
-    // CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
-    // CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
-    // CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
-    // CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
+    CG: Store<
+            Vec<command::CommandPool<families::Graphics>>,
+            Vec<command::CommandPoolInfo<families::Graphics>>,
+        >,
+    CC: Store<
+            Vec<command::CommandPool<families::Compute>>,
+            Vec<command::CommandPoolInfo<families::Compute>>,
+        >,
+    CT: Store<
+            Vec<command::CommandPool<families::Transfer>>,
+            Vec<command::CommandPoolInfo<families::Transfer>>,
+        >,
+    CS: Store<
+            Vec<command::CommandPool<families::Sparse>>,
+            Vec<command::CommandPoolInfo<families::Sparse>>,
+        >,
+    CP: Store<
+            Vec<command::CommandPool<families::Protected>>,
+            Vec<command::CommandPoolInfo<families::Protected>>,
+        >,
 {
     instance: FieldConfig<I, instance::Instance, instance::InstanceInfo>,
     device: FieldConfig<D, device::Device, device::DeviceInfo>,
 
     required_queues: families::Families<bool>,
-    // device_extensions: Vec<CString>,
-    // physical_device: Option<device::PhysicalDeviceSelector>,
-    // swapchain: Option<swapchain::SwapchainConfig>,
-    // command_pools: Vec<command::CommandPoolConfigFamily>,
-    // _has_device: PhantomData<D>,
-    // _has_swapchain: PhantomData<S>,
-    // _has_cmd_graphics: PhantomData<CG>,
-    // _has_cmd_compute: PhantomData<CC>,
-    // _has_cmd_transfer: PhantomData<CT>,
-    // _has_cmd_sparse: PhantomData<CS>,
-    // _has_cmd_protected: PhantomData<CP>,
+    pools: command::CommandPools<CG, CC, CT, CS, CP>,
 }
 
-impl Default for BaseConfig<Absent, Absent> {
+impl Default for BaseConfig<Absent, Absent, Absent, Absent, Absent, Absent, Absent> {
     fn default() -> Self {
         Self {
             instance: (),
             device: (),
-
             required_queues: Default::default(),
-            // required_queues: Default::default(),
-            // physical_device: None,
-            // swapchain: None,
-            // command_pools: Default::default(),
-            // _has_device: PhantomData,
-            // _has_swapchain: PhantomData,
-            // _has_cmd_graphics: PhantomData,
-            // _has_cmd_compute: PhantomData,
-            // _has_cmd_transfer: PhantomData,
-            // _has_cmd_sparse: PhantomData,
-            // _has_cmd_protected: PhantomData,
+            pools: Default::default(),
         }
     }
 }
 
-impl<I, D> BaseConfig<I, D>
+impl<I, D, CG, CC, CT, CS, CP> BaseConfig<I, D, CG, CC, CT, CS, CP>
 where
     I: Store<instance::Instance, instance::InstanceInfo> + instance::CreateInstance<I>,
     D: Store<device::Device, device::DeviceInfo> + device::CreateDevice<D, I>,
-    // S: Store<swapchain::SwapchainInfo> + swapchain::BuildSwapchain<S>,
-    // CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>
-    //     + command::BuildCommandPools<families::Graphics, CG>,
-    // CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>
-    //     + command::BuildCommandPools<families::Compute, CC>,
-    // CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>
-    //     + command::BuildCommandPools<families::Transfer, CT>,
-    // CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>
-    //     + command::BuildCommandPools<families::Sparse, CS>,
-    // CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>
-    //     + command::BuildCommandPools<families::Protected, CP>,
+    CG: Store<
+            Vec<command::CommandPool<families::Graphics>>,
+            Vec<command::CommandPoolInfo<families::Graphics>>,
+        > + command::CreateCommandPool<families::Graphics, CG, D, I>,
+    CC: Store<
+            Vec<command::CommandPool<families::Compute>>,
+            Vec<command::CommandPoolInfo<families::Compute>>,
+        > + command::CreateCommandPool<families::Compute, CC, D, I>,
+    CT: Store<
+            Vec<command::CommandPool<families::Transfer>>,
+            Vec<command::CommandPoolInfo<families::Transfer>>,
+        > + command::CreateCommandPool<families::Transfer, CT, D, I>,
+    CS: Store<
+            Vec<command::CommandPool<families::Sparse>>,
+            Vec<command::CommandPoolInfo<families::Sparse>>,
+        > + command::CreateCommandPool<families::Sparse, CS, D, I>,
+    CP: Store<
+            Vec<command::CommandPool<families::Protected>>,
+            Vec<command::CommandPoolInfo<families::Protected>>,
+        > + command::CreateCommandPool<families::Protected, CP, D, I>,
 {
-    pub fn build(mut self) -> Result<Base<I, D>, vk::Result> {
+    pub fn build(mut self) -> Result<Base<I, D, CG, CC, CT, CS, CP>, vk::Result> {
         let entry = unsafe { ash::Entry::load().expect("Failed to load Entry") };
         let instance = I::create(self.instance, &entry)?;
         let device = D::create(self.device, &instance, self.required_queues)?;
-
-        // TODO: Pass self.device_extensions via reference and with array instead of vector also
-        // convert into &CStr
-        // let device = D::build_device(
-        //     self.physical_device,
-        //     &tmp_instance,
-        //     self.device_extensions,
-        //     self.required_queues,
-        // )?;
-
-        // let command_pools = Self::build_command_pools(&tmp_instance, &device, &self.command_pools)?;
-
-        // let swapchain = S::build_swapchain(self.swapchain, &tmp_instance, &device)?;
+        let pools_graphics = CG::create(self.pools.graphics, &device, &instance)?;
+        let pools_compute = CC::create(self.pools.compute, &device, &instance)?;
+        let pools_transfer = CT::create(self.pools.transfer, &device, &instance)?;
+        let pools_sparse = CS::create(self.pools.sparse, &device, &instance)?;
+        let pools_protected = CP::create(self.pools.protected, &device, &instance)?;
+        let pools = command::CommandPoolInfos {
+            graphics: pools_graphics,
+            compute: pools_compute,
+            transfer: pools_transfer,
+            sparse: pools_sparse,
+            protected: pools_protected,
+        };
 
         Ok(Base {
+            pools,
             device,
             instance,
             entry,
@@ -206,123 +225,47 @@ where
     //         protected,
     //     })
     // }
-}
 
-impl<I, D> BaseConfig<I, D>
-where
-    I: Store<instance::Instance, instance::InstanceInfo>,
-    D: Store<device::Device, device::DeviceInfo>,
-    // S: Store<swapchain::SwapchainInfo>,
-    // CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
-    // CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
-    // CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
-    // CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
-    // CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
-{
     pub fn with<T: Apply<Self>>(self, opt: T) -> T::Out {
         opt.apply(self)
     }
 }
 
-//     pub fn with_device(
-//         mut self,
-//         configure: fn(device::PhysicalDeviceSelector) -> device::PhysicalDeviceSelector,
-//     ) -> BaseConfig<Present, S, CG, CC, CT, CS, CP> {
-//         self.physical_device = Some(configure(Default::default()));
-//         self.cast()
-//     }
-//     pub fn with_validation_layers(mut self, extensions: Vec<CString>) -> Self {
-//         self.instance_extensions
-//             .push(CString::from(c"VK_EXT_debug_utils"));
-//         self.layer_extensions = extensions;
-//         self
-//     }
-// }
-//
-// impl<S, CG, CC, CT, CS, CP> BaseConfig<Present, S, CG, CC, CT, CS, CP>
-// where
-//     S: Store<swapchain::SwapchainInfo>,
-//     CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
-//     CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
-//     CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
-//     CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
-//     CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
-// {
-//     pub fn with_device_extensions(mut self, extensions: Vec<CString>) -> Self {
-//         self.device_extensions = extensions;
-//         self
-//     }
-//
-//     pub fn with_graphics_pool(
-//         mut self,
-//         configure: fn(
-//             command::CommandPoolConfig<families::Graphics>,
-//         ) -> command::CommandPoolConfig<families::Graphics>,
-//     ) -> BaseConfig<Present, S, Present, CC, CT, CS, CP> {
-//         self.required_queues.set::<families::Graphics>(true);
-//         let config = configure(command::CommandPoolConfig::default());
-//         self.command_pools.push(config.into());
-//         self.cast()
-//     }
-//
-//     pub fn with_compute_pool(
-//         mut self,
-//         configure: fn(
-//             command::CommandPoolConfig<families::Compute>,
-//         ) -> command::CommandPoolConfig<families::Compute>,
-//     ) -> BaseConfig<Present, S, CG, Present, CT, CS, CP> {
-//         self.required_queues.set::<families::Compute>(true);
-//         let config = configure(command::CommandPoolConfig::default());
-//         self.command_pools.push(config.into());
-//         self.cast()
-//     }
-//
-//     pub fn with_transfer_pool(
-//         mut self,
-//         configure: fn(
-//             command::CommandPoolConfig<families::Transfer>,
-//         ) -> command::CommandPoolConfig<families::Transfer>,
-//     ) -> BaseConfig<Present, S, CG, CC, Present, CS, CP> {
-//         self.required_queues.set::<families::Transfer>(true);
-//         let config = configure(command::CommandPoolConfig::default());
-//         self.command_pools.push(config.into());
-//         self.cast()
-//     }
-//
-//     pub fn with_sparse_pool(
-//         mut self,
-//         configure: fn(
-//             command::CommandPoolConfig<families::Sparse>,
-//         ) -> command::CommandPoolConfig<families::Sparse>,
-//     ) -> BaseConfig<Present, S, CG, CC, CT, Present, CP> {
-//         self.required_queues.set::<families::Sparse>(true);
-//         let config = configure(command::CommandPoolConfig::default());
-//         self.command_pools.push(config.into());
-//         self.cast()
-//     }
-//
-//     pub fn with_protected_pool(
-//         mut self,
-//         configure: fn(
-//             command::CommandPoolConfig<families::Protected>,
-//         ) -> command::CommandPoolConfig<families::Protected>,
-//     ) -> BaseConfig<Present, S, CG, CC, CT, CS, Present> {
-//         self.required_queues.set::<families::Protected>(true);
-//         let config = configure(command::CommandPoolConfig::default());
-//         self.command_pools.push(config.into());
-//         self.cast()
-//     }
-// }
-
-impl<I, D> fmt::Debug for Base<I, D>
+impl<I, D, CG, CC, CT, CS, CP> fmt::Debug for Base<I, D, CG, CC, CT, CS, CP>
 where
     I: Store<instance::Instance, instance::InstanceInfo, StoredInfo = dyn fmt::Debug>,
     D: Store<device::Device, device::DeviceInfo, StoredInfo = dyn fmt::Debug>,
+    CG: Store<
+            Vec<command::CommandPool<families::Graphics>>,
+            Vec<command::CommandPoolInfo<families::Graphics>>,
+            StoredInfo = dyn fmt::Debug,
+        >,
+    CC: Store<
+            Vec<command::CommandPool<families::Compute>>,
+            Vec<command::CommandPoolInfo<families::Compute>>,
+            StoredInfo = dyn fmt::Debug,
+        >,
+    CT: Store<
+            Vec<command::CommandPool<families::Transfer>>,
+            Vec<command::CommandPoolInfo<families::Transfer>>,
+            StoredInfo = dyn fmt::Debug,
+        >,
+    CS: Store<
+            Vec<command::CommandPool<families::Sparse>>,
+            Vec<command::CommandPoolInfo<families::Sparse>>,
+            StoredInfo = dyn fmt::Debug,
+        >,
+    CP: Store<
+            Vec<command::CommandPool<families::Protected>>,
+            Vec<command::CommandPoolInfo<families::Protected>>,
+            StoredInfo = dyn fmt::Debug,
+        >,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Base")
             .field("Instance", &self.instance)
             .field("Device", &self.device)
+            .field("Pools", &&self.pools)
             .finish()
     }
 }

@@ -11,11 +11,32 @@ fn init_logger() {
     });
 }
 
-fn check<I, D>(base: Result<Base<I, D>, vk::Result>)
+fn check<I, D, CG, CC, CT, CS, CP>(base: Result<Base<I, D, CG, CC, CT, CS, CP>, vk::Result>)
 where
     I: Store<instance::Instance, instance::InstanceInfo>,
     D: Store<device::Device, device::DeviceInfo>,
+    CG: Store<
+            Vec<command::CommandPool<families::Graphics>>,
+            Vec<command::CommandPoolInfo<families::Graphics>>,
+        >,
+    CC: Store<
+            Vec<command::CommandPool<families::Compute>>,
+            Vec<command::CommandPoolInfo<families::Compute>>,
+        >,
+    CT: Store<
+            Vec<command::CommandPool<families::Transfer>>,
+            Vec<command::CommandPoolInfo<families::Transfer>>,
+        >,
+    CS: Store<
+            Vec<command::CommandPool<families::Sparse>>,
+            Vec<command::CommandPoolInfo<families::Sparse>>,
+        >,
+    CP: Store<
+            Vec<command::CommandPool<families::Protected>>,
+            Vec<command::CommandPoolInfo<families::Protected>>,
+        >,
 {
+    // println!("{base:#?}"); // FIXME: Fix the printing problem with Base Debug.
     if base.is_err() {
         eprintln!("\x1b[38;5;1m [ ERR ]::[Failed to initialize vulkan]\x1b[0m");
         let _ = base.inspect_err(|err| {
@@ -54,7 +75,7 @@ fn create_instance() {
 }
 
 #[test]
-fn creating_device() {
+fn creat_device() {
     init_logger();
     let base = vinit::BaseConfig::default()
         .with(
@@ -84,11 +105,13 @@ fn creating_device() {
 fn create_pool() {
     init_logger();
     let base = vinit::BaseConfig::default()
-        .with(instance::Instance::default())
+        .with(
+            instance::Instance::default()
+                .validation(vec![CString::from(c"VK_LAYER_KHRONOS_validation")]),
+        )
         .with(device::Device::default())
-        .with(command::CommandPool::<families::Graphics>::default())
-        // .with(command::CommandPoolGraphics::<families::Graphics>::default())
-    .build();
+        .with(command::CommandPool::<families::Graphics>::graphics())
+        .build();
 
     check(base);
 }

@@ -2,6 +2,7 @@ use crate::Apply;
 use crate::BaseConfig;
 use crate::SatisfiesDeps;
 use crate::Unsatisfied;
+use crate::command;
 use crate::families;
 use crate::instance;
 use crate::mass;
@@ -164,28 +165,28 @@ impl Device {
 
 pub struct DeviceInfo {
     pub device: Arc<ash::Device>,
-    pub physical_device: PhysicalDeviceInfo,
+    pub physical: PhysicalDeviceInfo,
     pub queue_handles: families::Families<Option<vk::Queue>>,
 }
 
 impl DeviceInfo {
     fn new(
-        physical_device: PhysicalDeviceInfo,
+        physical: PhysicalDeviceInfo,
         required_queues: families::Families<bool>,
         instance: &ash::Instance,
     ) -> Result<Self, vk::Result> {
-        let required_queue_family_indices = physical_device
+        let required_queue_family_indices = physical
             .queue_families_indices
             .filter_required(&required_queues);
         let queue_create_info = required_queue_family_indices.make_create_info(&[1.0f32]);
 
-        let extension_ptrs: Vec<*const i8> = physical_device
+        let extension_ptrs: Vec<*const i8> = physical
             .enabled_extensions
             .iter()
             .map(|name| name.as_ptr())
             .collect();
         let device_create_info = vk::DeviceCreateInfo::default()
-            .enabled_features(&physical_device.enabled_features)
+            .enabled_features(&physical.enabled_features)
             .enabled_extension_names(&extension_ptrs)
             .queue_create_infos(&queue_create_info);
 
@@ -194,13 +195,13 @@ impl DeviceInfo {
         );
 
         let device = unsafe {
-            instance.create_device(physical_device.physical_device, &device_create_info, None)?
+            instance.create_device(physical.physical_device, &device_create_info, None)?
         };
         let queue_handles: families::Families<Option<vk::Queue>> =
             families::Families::new(&device, required_queue_family_indices);
         Ok(Self {
             device: Arc::new(device),
-            physical_device,
+            physical,
             queue_handles,
         })
     }
@@ -386,13 +387,36 @@ impl std::fmt::Debug for PhysicalDeviceInfo {
     }
 }
 
-impl Apply<BaseConfig<Present, Absent>> for Device {
-    type Out = BaseConfig<Present, Present>;
-    fn apply(self, config: BaseConfig<Present, Absent>) -> Self::Out {
+impl<CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Absent, CG, CC, CT, CS, CP>> for Device
+where
+    CG: Store<
+            Vec<command::CommandPool<families::Graphics>>,
+            Vec<command::CommandPoolInfo<families::Graphics>>,
+        >,
+    CC: Store<
+            Vec<command::CommandPool<families::Compute>>,
+            Vec<command::CommandPoolInfo<families::Compute>>,
+        >,
+    CT: Store<
+            Vec<command::CommandPool<families::Transfer>>,
+            Vec<command::CommandPoolInfo<families::Transfer>>,
+        >,
+    CS: Store<
+            Vec<command::CommandPool<families::Sparse>>,
+            Vec<command::CommandPoolInfo<families::Sparse>>,
+        >,
+    CP: Store<
+            Vec<command::CommandPool<families::Protected>>,
+            Vec<command::CommandPoolInfo<families::Protected>>,
+        >,
+{
+    type Out = BaseConfig<Present, Present, CG, CC, CT, CS, CP>;
+    fn apply(self, config: BaseConfig<Present, Absent, CG, CC, CT, CS, CP>) -> Self::Out {
         BaseConfig {
             instance: config.instance,
             device: self,
             required_queues: config.required_queues,
+            pools: config.pools,
         }
     }
 }

@@ -149,35 +149,38 @@ impl Instance {
     }
 }
 
-impl<D> Apply<BaseConfig<Absent, D>> for Instance
+impl<D, CG, CC, CT, CS, CP> Apply<BaseConfig<Absent, D, CG, CC, CT, CS, CP>> for Instance
 where
     D: Store<device::Device, device::DeviceInfo>,
-    // S: Store<swapchain::SwapchainInfo>,
-    // CG: Store<Vec<command::CommandPoolInfo<families::Graphics>>>,
-    // CC: Store<Vec<command::CommandPoolInfo<families::Compute>>>,
-    // CT: Store<Vec<command::CommandPoolInfo<families::Transfer>>>,
-    // CS: Store<Vec<command::CommandPoolInfo<families::Sparse>>>,
-    // CP: Store<Vec<command::CommandPoolInfo<families::Protected>>>,
+    CG: Store<
+            Vec<command::CommandPool<families::Graphics>>,
+            Vec<command::CommandPoolInfo<families::Graphics>>,
+        >,
+    CC: Store<
+            Vec<command::CommandPool<families::Compute>>,
+            Vec<command::CommandPoolInfo<families::Compute>>,
+        >,
+    CT: Store<
+            Vec<command::CommandPool<families::Transfer>>,
+            Vec<command::CommandPoolInfo<families::Transfer>>,
+        >,
+    CS: Store<
+            Vec<command::CommandPool<families::Sparse>>,
+            Vec<command::CommandPoolInfo<families::Sparse>>,
+        >,
+    CP: Store<
+            Vec<command::CommandPool<families::Protected>>,
+            Vec<command::CommandPoolInfo<families::Protected>>,
+        >,
 {
-    type Out = BaseConfig<Present, D>;
+    type Out = BaseConfig<Present, D, CG, CC, CT, CS, CP>;
 
-    fn apply(self, config: BaseConfig<Absent, D>) -> Self::Out {
+    fn apply(self, config: BaseConfig<Absent, D, CG, CC, CT, CS, CP>) -> Self::Out {
         BaseConfig {
             instance: self,
             device: config.device,
             required_queues: config.required_queues,
-            // device_extensions: config.device_extensions,
-            // required_queues: config.required_queues,
-            // physical_device: config.physical_device,
-            // swapchain: config.swapchain,
-            // command_pools: config.command_pools,
-            // _has_device: PhantomData,
-            // _has_swapchain: PhantomData,
-            // _has_cmd_graphics: PhantomData,
-            // _has_cmd_compute: PhantomData,
-            // _has_cmd_transfer: PhantomData,
-            // _has_cmd_sparse: PhantomData,
-            // _has_cmd_protected: PhantomData,
+            pools: config.pools,
         }
     }
 }
