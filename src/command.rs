@@ -130,7 +130,7 @@ impl<Q: families::QueueFamily> CommandPool<Q> {
 
 impl<Q: families::QueueFamily> CommandPool<Q> {
     fn create(self, device: &device::DeviceInfo) -> Result<CommandPoolInfo<Q>, vk::Result> {
-        let queue_family_index = device.physical.queue_families_indices.get::<Q>().unwrap();
+        let queue_family_index = device.physical.queue_families_indices.get::<Q>().expect("Type system guarantees that this is valid");
         let command_pool_create_info = vk::CommandPoolCreateInfo::default()
             .flags(self.flags)
             .queue_family_index(queue_family_index);
@@ -143,7 +143,7 @@ impl<Q: families::QueueFamily> CommandPool<Q> {
         Ok(CommandPoolInfo {
             pool: command_pool,
             device: Arc::clone(&device.device),
-            queue: device.queue_handles.get::<Q>().unwrap(),
+            queue: device.queue_handles.get::<Q>().expect("Type system guarantees that this is valid"),
             _queue: PhantomData,
         })
     }

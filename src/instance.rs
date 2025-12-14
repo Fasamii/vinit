@@ -84,6 +84,7 @@ impl Instance {
         self.extensions = Some(extensions);
         self
     }
+    // TODO: think about disabling that in release build
     pub fn validation(mut self, layers: Vec<CString>) -> Self {
         self.validation = Some(layers);
         self
