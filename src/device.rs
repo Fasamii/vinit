@@ -6,6 +6,7 @@ use crate::{Absent, Present, Store};
 use crate::{Apply, BaseConfig};
 use crate::{SatisfiesDeps, Unsatisfied};
 use ash::vk;
+use core::fmt;
 use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::sync::Arc;
@@ -56,6 +57,67 @@ impl CreateDevice<Present, Present> for Present {
         required_queues: families::Families<bool>,
     ) -> Result<DeviceInfo, vk::Result> {
         config.create(required_queues, &instance.0)
+    }
+}
+
+pub struct DeviceInfo {
+    pub device: Arc<ash::Device>,
+    pub physical: PhysicalDeviceInfo,
+    pub queue_handles: families::Families<Option<vk::Queue>>,
+}
+
+impl DeviceInfo {
+    fn new(
+        physical: PhysicalDeviceInfo,
+        required_queues: families::Families<bool>,
+        instance: &ash::Instance,
+    ) -> Result<Self, vk::Result> {
+        let required_queue_family_indices = physical
+            .queue_families_indices
+            .filter_required(&required_queues);
+        let queue_create_info = required_queue_family_indices.make_create_info(&[1.0f32]);
+
+        let extension_ptrs: Vec<*const i8> = physical
+            .enabled_extensions
+            .iter()
+            .map(|name| name.as_ptr())
+            .collect();
+        let device_create_info = vk::DeviceCreateInfo::default()
+            .enabled_features(&physical.enabled_features)
+            .enabled_extension_names(&extension_ptrs)
+            .queue_create_infos(&queue_create_info);
+
+        log::info!(
+            "device_create_info = {device_create_info:#?}\n queue_create_info = {queue_create_info:#?}"
+        );
+
+        let device =
+            unsafe { instance.create_device(physical.physical_device, &device_create_info, None)? };
+        let queue_handles: families::Families<Option<vk::Queue>> =
+            families::Families::new(&device, required_queue_family_indices);
+        Ok(Self {
+            device: Arc::new(device),
+            physical,
+            queue_handles,
+        })
+    }
+}
+
+impl fmt::Debug for DeviceInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DeviceInfo")
+            .field("device", &self.device.handle())
+            .field("physical", &self.physical)
+            .finish()
+    }
+}
+
+impl Drop for DeviceInfo {
+    fn drop(&mut self) {
+        unsafe {
+            self.device.device_wait_idle().ok();
+            self.device.destroy_device(None);
+        }
     }
 }
 
@@ -156,58 +218,6 @@ impl Device {
             Ok(candidates.into_iter().max_by_key(|info| info.score()))
         } else {
             Ok(candidates.into_iter().min_by_key(|info| info.score()))
-        }
-    }
-}
-
-pub struct DeviceInfo {
-    pub device: Arc<ash::Device>,
-    pub physical: PhysicalDeviceInfo,
-    pub queue_handles: families::Families<Option<vk::Queue>>,
-}
-
-impl DeviceInfo {
-    fn new(
-        physical: PhysicalDeviceInfo,
-        required_queues: families::Families<bool>,
-        instance: &ash::Instance,
-    ) -> Result<Self, vk::Result> {
-        let required_queue_family_indices = physical
-            .queue_families_indices
-            .filter_required(&required_queues);
-        let queue_create_info = required_queue_family_indices.make_create_info(&[1.0f32]);
-
-        let extension_ptrs: Vec<*const i8> = physical
-            .enabled_extensions
-            .iter()
-            .map(|name| name.as_ptr())
-            .collect();
-        let device_create_info = vk::DeviceCreateInfo::default()
-            .enabled_features(&physical.enabled_features)
-            .enabled_extension_names(&extension_ptrs)
-            .queue_create_infos(&queue_create_info);
-
-        log::info!(
-            "device_create_info = {device_create_info:#?}\n queue_create_info = {queue_create_info:#?}"
-        );
-
-        let device =
-            unsafe { instance.create_device(physical.physical_device, &device_create_info, None)? };
-        let queue_handles: families::Families<Option<vk::Queue>> =
-            families::Families::new(&device, required_queue_family_indices);
-        Ok(Self {
-            device: Arc::new(device),
-            physical,
-            queue_handles,
-        })
-    }
-}
-
-impl Drop for DeviceInfo {
-    fn drop(&mut self) {
-        unsafe {
-            self.device.device_wait_idle().ok();
-            self.device.destroy_device(None);
         }
     }
 }
@@ -386,25 +396,25 @@ impl std::fmt::Debug for PhysicalDeviceInfo {
 impl<CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Absent, CG, CC, CT, CS, CP>> for Device
 where
     CG: Store<
-            Vec<command::CommandPool<families::Graphics>>,
-            Vec<command::CommandPoolInfo<families::Graphics>>,
-        >,
+        Vec<command::CommandPool<families::Graphics>>,
+        Vec<command::CommandPoolInfo<families::Graphics>>,
+    >,
     CC: Store<
-            Vec<command::CommandPool<families::Compute>>,
-            Vec<command::CommandPoolInfo<families::Compute>>,
-        >,
+        Vec<command::CommandPool<families::Compute>>,
+        Vec<command::CommandPoolInfo<families::Compute>>,
+    >,
     CT: Store<
-            Vec<command::CommandPool<families::Transfer>>,
-            Vec<command::CommandPoolInfo<families::Transfer>>,
-        >,
+        Vec<command::CommandPool<families::Transfer>>,
+        Vec<command::CommandPoolInfo<families::Transfer>>,
+    >,
     CS: Store<
-            Vec<command::CommandPool<families::Sparse>>,
-            Vec<command::CommandPoolInfo<families::Sparse>>,
-        >,
+        Vec<command::CommandPool<families::Sparse>>,
+        Vec<command::CommandPoolInfo<families::Sparse>>,
+    >,
     CP: Store<
-            Vec<command::CommandPool<families::Protected>>,
-            Vec<command::CommandPoolInfo<families::Protected>>,
-        >,
+        Vec<command::CommandPool<families::Protected>>,
+        Vec<command::CommandPoolInfo<families::Protected>>,
+    >,
 {
     type Out = BaseConfig<Present, Present, CG, CC, CT, CS, CP>;
     fn apply(self, config: BaseConfig<Present, Absent, CG, CC, CT, CS, CP>) -> Self::Out {

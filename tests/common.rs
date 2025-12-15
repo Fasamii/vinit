@@ -99,6 +99,8 @@ fn base_lifetimes() {
         .build()
         .expect("Failed to create Base");
 
+    // println!("Base = {base:#?}"); // FIX: that printing damn.
+
     {
         let _instance = base.instance();
     }

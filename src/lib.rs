@@ -184,39 +184,38 @@ where
 
 impl<I, D, CG, CC, CT, CS, CP> fmt::Debug for Base<I, D, CG, CC, CT, CS, CP>
 where
-    I: Store<instance::Instance, instance::InstanceInfo, StoredInfo = dyn fmt::Debug>,
-    D: Store<device::Device, device::DeviceInfo, StoredInfo = dyn fmt::Debug>,
+    I: Store<instance::Instance, instance::InstanceInfo>,
+    D: Store<device::Device, device::DeviceInfo>,
     CG: Store<
         Vec<command::CommandPool<families::Graphics>>,
         Vec<command::CommandPoolInfo<families::Graphics>>,
-        StoredInfo = dyn fmt::Debug,
     >,
     CC: Store<
         Vec<command::CommandPool<families::Compute>>,
         Vec<command::CommandPoolInfo<families::Compute>>,
-        StoredInfo = dyn fmt::Debug,
     >,
     CT: Store<
         Vec<command::CommandPool<families::Transfer>>,
         Vec<command::CommandPoolInfo<families::Transfer>>,
-        StoredInfo = dyn fmt::Debug,
     >,
     CS: Store<
         Vec<command::CommandPool<families::Sparse>>,
         Vec<command::CommandPoolInfo<families::Sparse>>,
-        StoredInfo = dyn fmt::Debug,
     >,
     CP: Store<
         Vec<command::CommandPool<families::Protected>>,
         Vec<command::CommandPoolInfo<families::Protected>>,
-        StoredInfo = dyn fmt::Debug,
     >,
+    // Add these bounds to require the StoredInfo types to implement Debug
+    FieldInfo<I, instance::Instance, instance::InstanceInfo>: fmt::Debug,
+    FieldInfo<D, device::Device, device::DeviceInfo>: fmt::Debug,
+    command::CommandPoolInfos<CG, CC, CT, CS, CP>: fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Base")
             .field("Instance", &self.instance)
             .field("Device", &self.device)
-            .field("Pools", &&self.pools)
+            .field("Pools", &self.pools)
             .finish()
     }
 }

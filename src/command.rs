@@ -62,6 +62,16 @@ pub struct CommandPoolInfo<Q: families::QueueFamily> {
     _queue: PhantomData<Q>,
 }
 
+impl<Q: families::QueueFamily> fmt::Debug for CommandPoolInfo<Q> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CommandPoolInfo")
+            .field("pool", &self.pool)
+            .field("queue", &self.queue)
+            .field("family", &std::any::type_name::<Q>())
+            .finish()
+    }
+}
+
 impl<Q: families::QueueFamily> Drop for CommandPoolInfo<Q> {
     fn drop(&mut self) {
         unsafe {
