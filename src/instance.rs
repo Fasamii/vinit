@@ -22,7 +22,7 @@ impl CreateInstance<Absent> for Absent {
 
 impl CreateInstance<Present> for Present {
     fn create(config: Instance, entry: &ash::Entry) -> Result<InstanceInfo, vk::Result> {
-        config.create(entry.clone())
+        config.create(entry)
     }
 }
 
@@ -107,7 +107,7 @@ impl Instance {
 }
 
 impl Instance {
-    fn create(self, entry: ash::Entry) -> Result<InstanceInfo, vk::Result> {
+    fn create(self, entry: &ash::Entry) -> Result<InstanceInfo, vk::Result> {
         let app_info =
             vk::ApplicationInfo::default().api_version(Self::make_version(self.api_version));
 
