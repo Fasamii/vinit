@@ -48,7 +48,7 @@ pub struct Instance {
 impl Default for Instance {
     fn default() -> Self {
         Self {
-            api_version: (0, 1, 1),
+            api_version: (1, 3, 0),
             app_name: None,
             app_version: None,
             engine_name: None,
@@ -61,7 +61,7 @@ impl Default for Instance {
 
 impl Instance {
     pub fn api_version(mut self, major: u32, minor: u32, patch: u32) -> Self {
-        self.api_version = (patch, minor, major);
+        self.api_version = (major, minor, minor);
         self
     }
     pub fn app_name(mut self, app_name: CString) -> Self {
@@ -93,7 +93,7 @@ impl Instance {
 
 impl Instance {
     fn make_version(version: (u32, u32, u32)) -> u32 {
-        vk::make_api_version(0, version.2, version.1, version.0)
+        vk::make_api_version(0, version.0, version.1, version.2)
     }
 }
 

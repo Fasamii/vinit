@@ -25,7 +25,7 @@ fn create_instance() {
     let _base = vinit::BaseConfig::default()
         .with(
             instance::Instance::default()
-                .api_version(0, 3, 1)
+                .api_version(1, 3, 0)
                 .validation(vec![CString::new("VK_LAYER_KHRONOS_validation").unwrap()])
                 .app_name(CString::new("TEST").unwrap())
                 .app_version(0, 0, 0),
