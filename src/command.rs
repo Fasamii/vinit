@@ -444,7 +444,7 @@ where
     type Out = BaseConfig<Present, Present, CG, CC, CT, Present, CP>;
     fn apply(self, config: BaseConfig<Present, Present, CG, CC, CT, CS, CP>) -> Self::Out {
         let mut required_queues = config.required_queues;
-        required_queues.set::<families::Graphics>(true);
+        required_queues.set::<families::Sparse>(true);
         let sparse = config.pools.sparse.append_or_create(self);
         BaseConfig {
             instance: config.instance,
@@ -473,7 +473,7 @@ where
     type Out = BaseConfig<Present, Present, CG, CC, CT, CS, Present>;
     fn apply(self, config: BaseConfig<Present, Present, CG, CC, CT, CS, CP>) -> Self::Out {
         let mut required_queues = config.required_queues;
-        required_queues.set::<families::Graphics>(true);
+        required_queues.set::<families::Protected>(true);
         let protected = config.pools.protected.append_or_create(self);
         BaseConfig {
             instance: config.instance,
