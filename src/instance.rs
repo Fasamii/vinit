@@ -60,7 +60,7 @@ impl Default for Instance {
 }
 
 impl Instance {
-    pub fn api_version(mut self, patch: u32, minor: u32, major: u32) -> Self {
+    pub fn api_version(mut self, major: u32, minor: u32, patch: u32) -> Self {
         self.api_version = (patch, minor, major);
         self
     }
@@ -68,7 +68,7 @@ impl Instance {
         self.app_name = Some(app_name);
         self
     }
-    pub fn app_version(mut self, patch: u32, minor: u32, major: u32) -> Self {
+    pub fn app_version(mut self, major: u32, minor: u32, patch: u32) -> Self {
         self.app_version = Some((patch, minor, major));
         self
     }
@@ -76,7 +76,7 @@ impl Instance {
         self.engine_name = Some(engine_name);
         self
     }
-    pub fn engine_version(mut self, patch: u32, minor: u32, major: u32) -> Self {
+    pub fn engine_version(mut self, major: u32, minor: u32, patch: u32) -> Self {
         self.engine_version = Some((patch, minor, major));
         self
     }
