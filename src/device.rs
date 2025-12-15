@@ -4,7 +4,6 @@ use crate::instance;
 use crate::mass;
 use crate::{Absent, Present, Store};
 use crate::{Apply, BaseConfig};
-use crate::{SatisfiesDeps, Unsatisfied};
 use ash::vk;
 use core::fmt;
 use std::collections::HashSet;
