@@ -11,57 +11,18 @@ fn init_logger() {
     });
 }
 
-fn check<I, D, CG, CC, CT, CS, CP>(base: Result<Base<I, D, CG, CC, CT, CS, CP>, vk::Result>)
-where
-    I: Store<instance::Instance, instance::InstanceInfo>,
-    D: Store<device::Device, device::DeviceInfo>,
-    CG: Store<
-        Vec<command::CommandPool<families::Graphics>>,
-        Vec<command::CommandPoolInfo<families::Graphics>>,
-    >,
-    CC: Store<
-        Vec<command::CommandPool<families::Compute>>,
-        Vec<command::CommandPoolInfo<families::Compute>>,
-    >,
-    CT: Store<
-        Vec<command::CommandPool<families::Transfer>>,
-        Vec<command::CommandPoolInfo<families::Transfer>>,
-    >,
-    CS: Store<
-        Vec<command::CommandPool<families::Sparse>>,
-        Vec<command::CommandPoolInfo<families::Sparse>>,
-    >,
-    CP: Store<
-        Vec<command::CommandPool<families::Protected>>,
-        Vec<command::CommandPoolInfo<families::Protected>>,
-    >,
-{
-    // println!("{base:#?}"); // FIXME: Fix the printing problem with Base Debug.
-    if base.is_err() {
-        eprintln!("\x1b[38;5;1m [ ERR ]::[Failed to initialize vulkan]\x1b[0m");
-        let _ = base.inspect_err(|err| {
-            eprintln!("err = {err:?}");
-        });
-        panic!("Some error (quick note: -- --nocapture (for showing output of test))");
-    } else {
-        println!("\x1b[38;5;2m [ OK ]::[Initialization was succesfull]\x1b[0m");
-    }
-}
-
-// TODO: make create_base_instance, create_base_device, ... Then make test foos which asserts
-// values in created base
-
 #[test]
 fn create_empty() {
     init_logger();
-    let base = vinit::BaseConfig::default().build();
-    check(base);
+    let _base = vinit::BaseConfig::default()
+        .build()
+        .expect("Failed to create Base");
 }
 
 #[test]
 fn create_instance() {
     init_logger();
-    let base = vinit::BaseConfig::default()
+    let _base = vinit::BaseConfig::default()
         .with(
             instance::Instance::default()
                 .api_version(0, 3, 1)
@@ -69,15 +30,14 @@ fn create_instance() {
                 .app_name(CString::new("TEST").unwrap())
                 .app_version(0, 0, 0),
         )
-        .build();
-
-    check(base);
+        .build()
+        .expect("Failed to create Base");
 }
 
 #[test]
 fn create_device() {
     init_logger();
-    let base = vinit::BaseConfig::default()
+    let _base = vinit::BaseConfig::default()
         .with(
             instance::Instance::default()
                 .validation(vec![CString::new("VK_LAYER_KHRONOS_validation").unwrap()]),
@@ -96,15 +56,14 @@ fn create_device() {
                     ),
                 ),
         )
-        .build();
-
-    check(base);
+        .build()
+        .expect("Failed to create Base");
 }
 
 #[test]
 fn create_pool() {
     init_logger();
-    let base = BaseConfig::default()
+    let _base = BaseConfig::default()
         .with(
             instance::Instance::default()
                 .app_name(CString::new("My App").unwrap())
@@ -126,7 +85,25 @@ fn create_pool() {
         )
         .with(command::CommandPool::graphics())
         .with(command::CommandPool::compute().flags(vk::CommandPoolCreateFlags::empty()))
-        .build();
+        .build()
+        .expect("Failed to create Base");
+}
 
-    check(base);
+#[test]
+fn base_lifetimes() {
+    init_logger();
+    let base = BaseConfig::default()
+        .with(instance::Instance::default())
+        .with(device::Device::default())
+        .with(command::CommandPool::graphics())
+        .build()
+        .expect("Failed to create Base");
+
+    {
+        let _instance = base.instance();
+    }
+
+    {
+        let _command = base.graphics_pools();
+    }
 }
