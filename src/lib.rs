@@ -6,9 +6,9 @@ pub mod instance;
 pub mod command;
 pub mod device;
 pub mod families;
+pub mod getters;
 mod mass;
 pub mod swapchain;
-pub mod getters;
 
 pub trait Store<C, I> {
     type StoredConfig;
