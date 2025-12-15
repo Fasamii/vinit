@@ -36,6 +36,7 @@ where
     }
 }
 
+// TODO: Remove that entirely if there wont be any problems because of commenting that out
 // NOTE: Removed in order to keep errors compile time
 // impl<I> CreateDevice<Present, I> for Present
 // where
