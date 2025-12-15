@@ -36,19 +36,20 @@ where
     }
 }
 
-impl<I> CreateDevice<Present, I> for Present
-where
-    I: Store<instance::Instance, instance::InstanceInfo>,
-    (): SatisfiesDeps<I, Satisfied = Unsatisfied>,
-{
-    fn create(
-        _config: Device,
-        _instance: &I::StoredInfo,
-        _required_queues: families::Families<bool>,
-    ) -> Result<DeviceInfo, vk::Result> {
-        Err(vk::Result::ERROR_INITIALIZATION_FAILED)
-    }
-}
+// NOTE: Removed in order to keep errors compile time
+// impl<I> CreateDevice<Present, I> for Present
+// where
+//     I: Store<instance::Instance, instance::InstanceInfo>,
+//     (): SatisfiesDeps<I, Satisfied = Unsatisfied>,
+// {
+//     fn create(
+//         _config: Device,
+//         _instance: &I::StoredInfo,
+//         _required_queues: families::Families<bool>,
+//     ) -> Result<DeviceInfo, vk::Result> {
+//         Err(vk::Result::ERROR_INITIALIZATION_FAILED)
+//     }
+// }
 
 impl CreateDevice<Present, Present> for Present {
     fn create(
