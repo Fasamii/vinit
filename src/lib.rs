@@ -8,6 +8,7 @@ pub mod device;
 pub mod families;
 mod mass;
 pub mod swapchain;
+pub mod getters;
 
 pub trait Store<C, I> {
     type StoredConfig;
@@ -76,10 +77,10 @@ where
         Vec<command::CommandPoolInfo<families::Protected>>,
     >,
 {
-    pub pools: command::CommandPoolInfos<CG, CC, CT, CS, CP>,
-    pub device: FieldInfo<D, device::Device, device::DeviceInfo>,
-    pub instance: FieldInfo<I, instance::Instance, instance::InstanceInfo>,
-    pub entry: ash::Entry,
+    pools: command::CommandPoolInfos<CG, CC, CT, CS, CP>,
+    device: FieldInfo<D, device::Device, device::DeviceInfo>,
+    instance: FieldInfo<I, instance::Instance, instance::InstanceInfo>,
+    entry: ash::Entry,
 }
 
 pub struct BaseConfig<I, D, CG, CC, CT, CS, CP>
