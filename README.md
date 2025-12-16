@@ -14,13 +14,13 @@ manner before program even runs. Which means that:
 
 # Features
 - **Compile-time dependency enforcement**
-  - You cannot create a `Device` without an `Instance`
+  - e.g.: You cannot create a `Device` without an `Instance`
 - **Type-state configuration**
   - Missing components are tracked at the type level
 - **Zero-cost abstractions**
   - No runtime checks for dependency ordering
 - **Modular configuration**
-  - Add only what you need (`Instance`, `Device`, command pools, queues)
+  - Add only what you need (`Instance`, `Device`, command pools)
 - **RAII-safe**
   - Vulkan objects are destroyed automatically in the correct order
 
@@ -28,13 +28,12 @@ manner before program even runs. Which means that:
 vinit uses type-state programming to track which components are present.
 
 At every step:
-- Configuration is accumulated in BaseConfig<...>. 
+- Configuration is accumulated in BaseConfig<...> 
 - Each .with(...) consumes the previous BaseConfig and returns a new one
 
 The type system enforces:
 - ordering
 - dependencies
-- required queue families
 
 Which means that code like this
 ```rust
