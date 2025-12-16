@@ -29,21 +29,6 @@ where
     }
 }
 
-// TODO: Remove that entirely if there wont be any problems because of commenting that out
-// NOTE: Removed in order to keep errors compile time
-// impl<Q: families::QueueFamily, D> CreateCommandPool<Q, Present, D> for Present
-// where
-//     D: Store<device::Device, device::DeviceInfo>,
-//     (): SatisfiesDeps<D, Satisfied = Unsatisfied>,
-// {
-//     fn create(
-//         _configs: Vec<CommandPool<Q>>,
-//         _device: &D::StoredInfo,
-//     ) -> Result<Vec<CommandPoolInfo<Q>>, vk::Result> {
-//         Err(vk::Result::ERROR_INITIALIZATION_FAILED)
-//     }
-// }
-
 impl<Q: families::QueueFamily> CreateCommandPool<Q, Present, Present> for Present {
     fn create(
         configs: Vec<CommandPool<Q>>,

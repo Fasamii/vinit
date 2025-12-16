@@ -28,21 +28,3 @@ pub trait Apply<For> {
     type Out;
     fn apply(self, config: For) -> Self::Out;
 }
-
-// struct Satisfied;
-// struct Unsatisfied;
-// trait SatisfiesDeps<DepTuple> {
-//     type Satisfied;
-// }
-//
-// impl SatisfiesDeps<()> for () {
-//     type Satisfied = Unsatisfied;
-// }
-//
-// impl SatisfiesDeps<instance::InstanceInfo> for () {
-//     type Satisfied = Satisfied;
-// }
-//
-// impl SatisfiesDeps<(device::DeviceInfo, instance::InstanceInfo)> for () {
-//     type Satisfied = Satisfied;
-// }
