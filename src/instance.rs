@@ -130,7 +130,6 @@ impl Instance {
         self
     }
 
-
     /// Sets the instance extensions to enable.
     pub fn extensions(mut self, extensions: Vec<CString>) -> Self {
         self.extensions = Some(extensions);
@@ -229,7 +228,7 @@ where
         BaseConfig {
             instance: self,
             device: config.device,
-            required_queues: config.required_queues,
+            device_constraints: config.device_constraints,
             pools: config.pools,
         }
     }

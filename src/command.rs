@@ -308,13 +308,16 @@ where
 {
     type Out = BaseConfig<Present, Present, Present, CC, CT, CS, CP>;
     fn apply(self, config: BaseConfig<Present, Present, CG, CC, CT, CS, CP>) -> Self::Out {
-        let mut required_queues = config.required_queues;
+        let mut required_queues = config.device_constraints.required_queues;
         required_queues.set::<families::Graphics>(true);
         let graphics = config.pools.graphics.append_or_create(self);
         BaseConfig {
             instance: config.instance,
             device: config.device,
-            required_queues,
+            device_constraints: device::DeviceConstraints {
+                required_queues,
+                .. config.device_constraints
+            },
             pools: CommandPools {
                 graphics,
                 compute: config.pools.compute,
@@ -338,13 +341,16 @@ where
 {
     type Out = BaseConfig<Present, Present, CG, Present, CT, CS, CP>;
     fn apply(self, config: BaseConfig<Present, Present, CG, CC, CT, CS, CP>) -> Self::Out {
-        let mut required_queues = config.required_queues;
+        let mut required_queues = config.device_constraints.required_queues;
         required_queues.set::<families::Compute>(true);
         let compute = config.pools.compute.append_or_create(self);
         BaseConfig {
             instance: config.instance,
             device: config.device,
-            required_queues,
+            device_constraints: device::DeviceConstraints {
+                required_queues,
+                .. config.device_constraints
+            },
             pools: CommandPools {
                 graphics: config.pools.graphics,
                 compute, 
@@ -368,13 +374,16 @@ where
 {
     type Out = BaseConfig<Present, Present, CG, CC, Present, CS, CP>;
     fn apply(self, config: BaseConfig<Present, Present, CG, CC, CT, CS, CP>) -> Self::Out {
-        let mut required_queues = config.required_queues;
+        let mut required_queues = config.device_constraints.required_queues;
         required_queues.set::<families::Transfer>(true);
         let transfer = config.pools.transfer.append_or_create(self);
         BaseConfig {
             instance: config.instance,
             device: config.device,
-            required_queues,
+            device_constraints: device::DeviceConstraints {
+                required_queues,
+                .. config.device_constraints
+            },
             pools: CommandPools {
                 graphics: config.pools.graphics,
                 compute: config.pools.compute, 
@@ -397,13 +406,16 @@ where
 {
     type Out = BaseConfig<Present, Present, CG, CC, CT, Present, CP>;
     fn apply(self, config: BaseConfig<Present, Present, CG, CC, CT, CS, CP>) -> Self::Out {
-        let mut required_queues = config.required_queues;
+        let mut required_queues = config.device_constraints.required_queues;
         required_queues.set::<families::Sparse>(true);
         let sparse = config.pools.sparse.append_or_create(self);
         BaseConfig {
             instance: config.instance,
             device: config.device,
-            required_queues,
+            device_constraints: device::DeviceConstraints {
+                required_queues,
+                .. config.device_constraints
+            },
             pools: CommandPools {
                 graphics: config.pools.graphics,
                 compute: config.pools.compute, 
@@ -426,13 +438,16 @@ where
 {
     type Out = BaseConfig<Present, Present, CG, CC, CT, CS, Present>;
     fn apply(self, config: BaseConfig<Present, Present, CG, CC, CT, CS, CP>) -> Self::Out {
-        let mut required_queues = config.required_queues;
+        let mut required_queues = config.device_constraints.required_queues;
         required_queues.set::<families::Protected>(true);
         let protected = config.pools.protected.append_or_create(self);
         BaseConfig {
             instance: config.instance,
             device: config.device,
-            required_queues,
+            device_constraints: device::DeviceConstraints {
+                required_queues,
+                .. config.device_constraints
+            },
             pools: CommandPools {
                 graphics: config.pools.graphics,
                 compute: config.pools.compute, 

@@ -95,8 +95,7 @@ where
 {
     pub instance: FieldConfig<I, instance::Instance, instance::InstanceInfo>,
     pub device: FieldConfig<D, device::Device, device::DeviceInfo>,
-
-    pub required_queues: families::Families<bool>,
+    pub device_constraints: device::DeviceConstraints,
     pub pools: command::CommandPools<CG, CC, CT, CS, CP>,
 }
 
@@ -105,7 +104,7 @@ impl Default for BaseConfig<Absent, Absent, Absent, Absent, Absent, Absent, Abse
         Self {
             instance: (),
             device: (),
-            required_queues: Default::default(),
+            device_constraints: Default::default(),
             pools: Default::default(),
         }
     }
@@ -153,7 +152,7 @@ where
         let entry =
             unsafe { ash::Entry::load().map_err(|_| vk::Result::ERROR_INITIALIZATION_FAILED)? };
         let instance = I::create(self.instance, &entry)?;
-        let device = D::create(self.device, &instance, self.required_queues)?;
+        let device = D::create(self.device, &instance, self.device_constraints)?;
         let pools_graphics = CG::create(self.pools.graphics, &device)?;
         let pools_compute = CC::create(self.pools.compute, &device)?;
         let pools_transfer = CT::create(self.pools.transfer, &device)?;

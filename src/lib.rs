@@ -157,18 +157,6 @@ type FieldInfo<S, C, I> = <S as Store<C, I>>::StoredInfo;
 /// # Associated Types
 ///
 /// * `Out` - The resulting configuration type after applying this item
-///
-/// # Examples
-///
-/// ```rust,ignore
-/// // Instance transitions from Absent to Present
-/// impl Apply<BaseConfig<Absent, D, ...>> for Instance {
-///     type Out = BaseConfig<Present, D, ...>;
-///     fn apply(self, config: BaseConfig<Absent, D, ...>) -> Self::Out {
-///         // Transform configuration
-///     }
-/// }
-/// ```
 pub trait Apply<For> {
     /// The resulting configuration type after applying this item.
     type Out;

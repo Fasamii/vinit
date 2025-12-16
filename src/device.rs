@@ -33,7 +33,7 @@ where
     fn create(
         config: D::StoredConfig,
         instance: &I::StoredInfo,
-        required_queues: families::Families<bool>,
+        constraints: DeviceConstraints,
     ) -> Result<D::StoredInfo, vk::Result>;
 }
 
@@ -44,7 +44,7 @@ where
     fn create(
         _config: (),
         _instance: &I::StoredInfo,
-        _required_queues: families::Families<bool>,
+        _constraints: DeviceConstraints,
     ) -> Result<(), vk::Result> {
         Ok(())
     }
@@ -54,9 +54,9 @@ impl CreateDevice<Present, Present> for Present {
     fn create(
         config: Device,
         instance: &instance::InstanceInfo,
-        required_queues: families::Families<bool>,
+        constraints: DeviceConstraints,
     ) -> Result<DeviceInfo, vk::Result> {
-        config.create(required_queues, &instance.0)
+        config.create(constraints, &instance.0)
     }
 }
 
@@ -72,7 +72,6 @@ pub struct DeviceInfo {
     pub queue_handles: families::Families<Option<vk::Queue>>,
 }
 
-// TODO: Refactor new to be create function under Device.
 impl DeviceInfo {
     fn new(
         physical: PhysicalDeviceInfo,
@@ -208,15 +207,15 @@ impl Device {
 impl Device {
     fn create(
         self,
-        required_queues: families::Families<bool>,
+        constraints: DeviceConstraints,
         instance: &ash::Instance,
     ) -> Result<DeviceInfo, vk::Result> {
         let physical_device = self
-            .require_queues(required_queues)
+            .require_queues(constraints.required_queues)
             .select(instance)?
             .ok_or(vk::Result::ERROR_FEATURE_NOT_PRESENT)?;
 
-        DeviceInfo::new(physical_device, required_queues, instance)
+        DeviceInfo::new(physical_device, constraints.required_queues, instance)
     }
 
     fn select(&self, instance: &ash::Instance) -> Result<Option<PhysicalDeviceInfo>, vk::Result> {
@@ -425,6 +424,20 @@ impl std::fmt::Debug for PhysicalDeviceInfo {
     }
 }
 
+pub struct DeviceConstraints {
+    pub required_queues: families::Families<bool>,
+    pub required_swapchain: bool,
+}
+
+impl Default for DeviceConstraints {
+    fn default() -> Self {
+        Self {
+            required_queues: Default::default(),
+            required_swapchain: false,
+        }
+    }
+}
+
 impl<CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Absent, CG, CC, CT, CS, CP>> for Device
 where
     CG: Store<
@@ -453,7 +466,7 @@ where
         BaseConfig {
             instance: config.instance,
             device: self,
-            required_queues: config.required_queues,
+            device_constraints: config.device_constraints,
             pools: config.pools,
         }
     }
