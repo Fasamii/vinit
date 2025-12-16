@@ -23,9 +23,10 @@ where
     ///
     /// # Arguments
     ///
-    /// * `config` - The device configuration
-    /// * `instance` - The Vulkan instance
-    /// * `required_queues` - Which queue families are required
+    /// `config` - The device configuration
+    /// `instance` - The Vulkan instance
+    /// `device_constraints` - Additional device requirements which creation is based on config of
+    /// other Vulkan resources
     ///
     /// # Errors
     ///
