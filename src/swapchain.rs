@@ -3,7 +3,7 @@ use ash::{khr, vk};
 
 pub struct SwapchainInfo {
     pub swapchain: vk::SwapchainKHR,
-    swapchain_loader: khr::swapchain::Device,
+    pub swapchain_loader: khr::swapchain::Device,
     pub images: Vec<vk::Image>,
     pub image_views: Vec<vk::ImageView>,
     pub format: vk::Format,
@@ -74,8 +74,9 @@ impl Swapchain {
         self,
         instance: &ash::Instance,
         device: &device::DeviceInfo,
-    ) -> Result<Self, vk::Result> {
+    ) -> Result<SwapchainInfo, vk::Result> {
         let surface = todo!("Read vulkan docs");
+
         let swapchain_create_info = vk::SwapchainCreateInfoKHR::default()
             .surface(surface) // TODO: Check if surface field for create info is required
             .min_image_count(self.min_image_count)
@@ -92,5 +93,15 @@ impl Swapchain {
         let swapchain_loader = khr::swapchain::Device::new(instance, &device.device);
         let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None)? };
         let swapchain_images = unsafe { swapchain_loader.get_swapchain_images(swapchain)? };
+
+        Ok(SwapchainInfo {
+            swapchain,
+            swapchain_loader,
+            images: todo!(),
+            image_views: todo!(),
+            format: todo!(),
+            extent: todo!(),
+            image_count: todo!(),
+        })
     }
 }
