@@ -6,6 +6,21 @@ use crate::{Absent, Apply, FieldConfig, FieldInfo, Present, Store};
 use ash::vk;
 use std::fmt;
 
+/// The main runtime structure containing initialized Vulkan resources.
+///
+/// `Base` is the result of building a [`BaseConfig`]. It contains all the created
+/// Vulkan resources with RAII-based cleanup. Resources are automatically destroyed
+/// in the correct order when `Base` is dropped.
+///
+/// # Type Parameters
+///
+/// The type parameters match those of [`BaseConfig`] and indicate which resources
+/// are present. All type parameters will be either [`Present`] or [`Absent`].
+///
+/// # Resource Access
+///
+/// Resources can only be accessed if they're marked as [`Present`] in the type.
+/// This is enforced through impl blocks with specific type parameter requirements.
 #[allow(unused)]
 pub struct Base<I, D, CG, CC, CT, CS, CP>
 where
@@ -38,6 +53,21 @@ where
     entry: ash::Entry,
 }
 
+/// The main configuration structure during the building phase.
+///
+/// `BaseConfig` uses the type-state pattern to track which resources have been configured.
+/// As you add resources using the `with` method, the type parameters change from [`Absent`]
+/// to [`Present`], ensuring compile-time safety.
+///
+/// # Type Parameters
+///
+/// * `I` - Instance presence marker
+/// * `D` - Device presence marker
+/// * `CG` - Graphics command pools presence marker
+/// * `CC` - Compute command pools presence marker
+/// * `CT` - Transfer command pools presence marker
+/// * `CS` - Sparse command pools presence marker
+/// * `CP` - Protected command pools presence marker
 pub struct BaseConfig<I, D, CG, CC, CT, CS, CP>
 where
     I: Store<instance::Instance, instance::InstanceInfo>,
@@ -106,6 +136,19 @@ where
             Vec<command::CommandPoolInfo<families::Protected>>,
         > + command::CreateCommandPool<families::Protected, CP, D>,
 {
+    /// Builds the configuration into a runtime [`Base`] instance.
+    ///
+    /// This method consumes the configuration and creates all the Vulkan resources
+    ///
+    /// # Returns
+    ///
+    /// A [`Base`] instance containing all the created Vulkan resources.
+    ///
+    /// # Errors
+    ///
+    /// Returns a Vulkan error if any resource creation fails. Common errors include:
+    /// - `ERROR_INITIALIZATION_FAILED` - Failed to load Vulkan entry point
+    /// - `ERROR_FEATURE_NOT_PRESENT` - No suitable device found
     pub fn build(self) -> Result<Base<I, D, CG, CC, CT, CS, CP>, vk::Result> {
         let entry =
             unsafe { ash::Entry::load().map_err(|_| vk::Result::ERROR_INITIALIZATION_FAILED)? };
@@ -132,6 +175,23 @@ where
         })
     }
 
+    /// Applies a configuration item to this configuration.
+    ///
+    /// This is the primary method for building up the configuration. Each call to
+    /// `with` potentially changes the type of the configuration as resources
+    /// transition from [`Absent`] to [`Present`].
+    ///
+    /// # Type Parameters
+    ///
+    /// * `T` - The type of configuration item to apply (must implement [`Apply`])
+    ///
+    /// # Arguments
+    ///
+    /// * `opt` - The configuration item to apply
+    ///
+    /// # Returns
+    ///
+    /// A new configuration with the item applied and potentially different types.
     pub fn with<T: Apply<Self>>(self, opt: T) -> T::Out {
         opt.apply(self)
     }
@@ -199,10 +259,16 @@ where
         Vec<command::CommandPoolInfo<families::Protected>>,
     >,
 {
+    /// Gets a reference to the Vulkan instance.
+    ///
+    /// This method is only available when the instance is [`Present`].
     pub fn instance(&self) -> &instance::InstanceInfo {
         &self.instance
     }
 
+    /// Gets a mutable reference to the Vulkan instance.
+    ///
+    /// This method is only available when the instance is [`Present`].
     pub fn instance_mut(&mut self) -> &mut instance::InstanceInfo {
         &mut self.instance
     }
@@ -233,10 +299,16 @@ where
         Vec<command::CommandPoolInfo<families::Protected>>,
     >,
 {
+    /// Gets a reference to the logical device.
+    ///
+    /// This method is only available when the device is [`Present`].
     pub fn device(&self) -> &device::DeviceInfo {
         &self.device
     }
 
+    /// Gets a mutable reference to the logical device.
+    ///
+    /// This method is only available when the device is [`Present`].
     pub fn device_mut(&mut self) -> &mut device::DeviceInfo {
         &mut self.device
     }
@@ -263,10 +335,16 @@ where
         Vec<command::CommandPoolInfo<families::Protected>>,
     >,
 {
+    /// Gets references to all graphics command pools.
+    ///
+    /// This method is only available when graphics pools are [`Present`].
     pub fn graphics_pools(&self) -> &Vec<command::CommandPoolInfo<families::Graphics>> {
         &self.pools.graphics
     }
 
+    /// Gets mutable references to all graphics command pools.
+    ///
+    /// This method is only available when graphics pools are [`Present`].
     pub fn graphics_pools_mut(&mut self) -> &mut Vec<command::CommandPoolInfo<families::Graphics>> {
         &mut self.pools.graphics
     }
@@ -293,10 +371,16 @@ where
         Vec<command::CommandPoolInfo<families::Protected>>,
     >,
 {
+    /// Gets references to all compute command pools.
+    ///
+    /// This method is only available when compute pools are [`Present`].
     pub fn compute_pools(&self) -> &Vec<command::CommandPoolInfo<families::Compute>> {
         &self.pools.compute
     }
 
+    /// Gets mutable references to all compute command pools.
+    ///
+    /// This method is only available when compute pools are [`Present`].
     pub fn compute_pools_mut(&mut self) -> &mut Vec<command::CommandPoolInfo<families::Compute>> {
         &mut self.pools.compute
     }
@@ -323,10 +407,16 @@ where
         Vec<command::CommandPoolInfo<families::Protected>>,
     >,
 {
+    /// Gets references to all transfer command pools.
+    ///
+    /// This method is only available when compute pools are [`Present`].
     pub fn transfer_pools(&self) -> &Vec<command::CommandPoolInfo<families::Transfer>> {
         &self.pools.transfer
     }
 
+    /// Gets mutable references to all transfer command pools.
+    ///
+    /// This method is only available when transfer pools are [`Present`].
     pub fn transfer_pools_mut(&mut self) -> &mut Vec<command::CommandPoolInfo<families::Transfer>> {
         &mut self.pools.transfer
     }
@@ -353,10 +443,16 @@ where
         Vec<command::CommandPoolInfo<families::Protected>>,
     >,
 {
+    /// Gets mutable references to all transfer command pools.
+    ///
+    /// This method is only available when transfer pools are [`Present`].
     pub fn sparse_pools(&self) -> &Vec<command::CommandPoolInfo<families::Sparse>> {
         &self.pools.sparse
     }
 
+    /// Gets mutable references to all sparse command pools.
+    ///
+    /// This method is only available when sparse pools are [`Present`].
     pub fn sparse_pools_mut(&mut self) -> &mut Vec<command::CommandPoolInfo<families::Sparse>> {
         &mut self.pools.sparse
     }
@@ -383,10 +479,16 @@ where
         Vec<command::CommandPoolInfo<families::Sparse>>,
     >,
 {
+    /// Gets references to all protected command pools.
+    ///
+    /// This method is only available when protected pools are [`Present`].
     pub fn protected_pools(&self) -> &Vec<command::CommandPoolInfo<families::Protected>> {
         &self.pools.protected
     }
 
+    /// Gets mutable references to all protected command pools.
+    ///
+    /// This method is only available when protected pools are [`Present`].
     pub fn protected_pools_mut(
         &mut self,
     ) -> &mut Vec<command::CommandPoolInfo<families::Protected>> {
@@ -419,10 +521,16 @@ where
         Vec<command::CommandPoolInfo<families::Protected>>,
     >,
 {
+    /// Gets a reference to the Vulkan entry point.
+    ///
+    /// The entry point is always available regardless of configuration.
     pub fn entry(&self) -> &ash::Entry {
         &self.entry
     }
 
+    /// Gets a mutable reference to the Vulkan entry point.
+    ///
+    /// The entry point is always available regardless of configuration.
     pub fn entry_mut(&mut self) -> &mut ash::Entry {
         &mut self.entry
     }

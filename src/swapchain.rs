@@ -1,7 +1,3 @@
-// use crate::{Store, Absent, Present};
-// use crate::device;
-// use ash::{vk, khr};
-//
 // pub trait BuildSwapchain<S: Store<SwapchainInfo>> {
 //     fn build_swapchain(
 //         config: Option<SwapchainConfig>,

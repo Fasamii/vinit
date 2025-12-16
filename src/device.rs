@@ -11,11 +11,25 @@ use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::sync::Arc;
 
+/// Trait for creating logical Vulkan devices.
+///
+/// This trait abstracts device creation for both [`Present`] and [`Absent`] states.
 pub trait CreateDevice<D, I>
 where
     D: Store<Device, DeviceInfo>,
     I: Store<instance::Instance, instance::InstanceInfo>,
 {
+    /// Creates a device from the configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The device configuration
+    /// * `instance` - The Vulkan instance
+    /// * `required_queues` - Which queue families are required
+    ///
+    /// # Errors
+    ///
+    /// Returns a Vulkan error if device creation fails or no suitable device is found.
     fn create(
         config: D::StoredConfig,
         instance: &I::StoredInfo,
@@ -46,9 +60,15 @@ impl CreateDevice<Present, Present> for Present {
     }
 }
 
+/// Runtime information for a created logical device.
+///
+/// Contains the logical device handle, physical device information, and queue handles.
 pub struct DeviceInfo {
+    /// The logical device handle wrapped in Arc for sharing
     pub device: Arc<ash::Device>,
+    /// Information about the physical device
     pub physical: PhysicalDeviceInfo,
+    /// Handles to the requested queues
     pub queue_handles: families::Families<Option<vk::Queue>>,
 }
 
@@ -108,6 +128,10 @@ impl Drop for DeviceInfo {
     }
 }
 
+/// Builder for configuring device selection and creation.
+///
+/// The `Device` struct provides filtering options to select an appropriate physical
+/// device and configuration options for the logical device.
 pub struct Device {
     prefer_best: bool,
     require_discrete: bool,
@@ -132,26 +156,44 @@ impl Default for Device {
 }
 
 impl Device {
+    /// Sets whether to prefer the best available device.
+    ///
+    /// When true, selects the device with the highest score based on VRAM,
+    /// compute capabilities, and feature support. When false, selects the
+    /// lowest scoring device that meets requirements.
     pub fn prefer_best(mut self, prefer: bool) -> Self {
         self.prefer_best = prefer;
         self
     }
 
+    /// Sets whether to require a discrete GPU.
+    ///
+    /// When true, only discrete GPUs will be considered. This filters out
+    /// integrated GPUs and virtual devices.
     pub fn require_discrete(mut self, require: bool) -> Self {
         self.require_discrete = require;
         self
     }
 
+    /// Sets required device properties.
+    ///
+    /// Devices that don't meet these property requirements will be filtered out.
     pub fn require_properties(mut self, properties: vk::PhysicalDeviceProperties) -> Self {
         self.required_properties = properties;
         self
     }
 
+    /// Sets required device features.
+    ///
+    /// Only devices that support all the specified features will be considered.
     pub fn require_features(mut self, features: vk::PhysicalDeviceFeatures) -> Self {
         self.required_features = features;
         self
     }
 
+    /// Sets required device extensions.
+    ///
+    /// Only devices that support all the specified extensions will be considered.
     pub fn require_extensions(mut self, extensions: HashSet<CString>) -> Self {
         self.required_extensions = extensions;
         self
@@ -209,6 +251,9 @@ impl Device {
     }
 }
 
+/// Information about a physical device.
+///
+/// Contains comprehensive information about the physical device
 pub struct PhysicalDeviceInfo {
     pub physical_device: vk::PhysicalDevice,
 

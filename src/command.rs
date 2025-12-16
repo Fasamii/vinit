@@ -8,11 +8,25 @@ use core::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
+/// Trait for creating command pools.
+///
+/// This trait abstracts command pool creation for both [`Present`] and [`Absent`] states
+/// and different queue family types.
 pub trait CreateCommandPool<Q: families::QueueFamily, P, D>
 where
     P: Store<Vec<CommandPool<Q>>, Vec<CommandPoolInfo<Q>>>,
     D: Store<device::Device, device::DeviceInfo>,
 {
+  /// Creates command pools from configurations.
+    ///
+    /// # Arguments
+    ///
+    /// * `configs` - Vector of command pool configurations
+    /// * `device` - The device to create pools on
+    ///
+    /// # Errors
+    ///
+    /// Returns a Vulkan error if command pool creation fails.
     fn create(
         configs: P::StoredConfig,
         device: &D::StoredInfo,
@@ -42,6 +56,9 @@ impl<Q: families::QueueFamily> CreateCommandPool<Q, Present, Present> for Presen
     }
 }
 
+/// Runtime information for a created command pool.
+///
+/// Contains the command pool handle and associated queue information.
 pub struct CommandPoolInfo<Q: families::QueueFamily> {
     pub pool: vk::CommandPool,
     device: Arc<ash::Device>,
@@ -68,12 +85,17 @@ impl<Q: families::QueueFamily> Drop for CommandPoolInfo<Q> {
     }
 }
 
+
+/// Builder for configuring a command pool.
+///
+/// Command pools are parameterized by queue family type to ensure type safety.
 pub struct CommandPool<Q: families::QueueFamily> {
     flags: vk::CommandPoolCreateFlags,
     _queue: PhantomData<Q>,
 }
 
 impl CommandPool<families::Graphics> {
+    /// Creates a graphics command pool configuration.
     pub fn graphics() -> CommandPool<families::Graphics>{
         CommandPool {
             flags: Default::default(),
@@ -83,6 +105,7 @@ impl CommandPool<families::Graphics> {
 }
 
 impl CommandPool<families::Compute> {
+    /// Creates a compute command pool configuration.
     pub fn compute() -> CommandPool<families::Compute>{
         CommandPool {
             flags: Default::default(),
@@ -92,6 +115,7 @@ impl CommandPool<families::Compute> {
 }
 
 impl CommandPool<families::Transfer> {
+    /// Creates a transfer command pool configuration.
     pub fn transfer() -> CommandPool<families::Transfer> {
         CommandPool {
             flags: Default::default(),
@@ -101,6 +125,7 @@ impl CommandPool<families::Transfer> {
 }
 
 impl CommandPool<families::Sparse> {
+    /// Creates a sparse binding command pool configuration.
     pub fn sparse() -> CommandPool<families::Sparse> {
         CommandPool {
             flags: Default::default(),
@@ -110,6 +135,7 @@ impl CommandPool<families::Sparse> {
 }
 
 impl CommandPool<families::Protected> {
+    /// Creates a protected memory command pool configuration.
     pub fn protected() -> CommandPool<families::Protected> {
         CommandPool {
             flags: Default::default(),
@@ -119,6 +145,7 @@ impl CommandPool<families::Protected> {
 }
 
 impl<Q: families::QueueFamily> CommandPool<Q> {
+    /// Sets the command pool creation flags.
     pub fn flags(mut self, flags: vk::CommandPoolCreateFlags) -> Self {
         self.flags = flags;
         self
@@ -146,6 +173,7 @@ impl<Q: families::QueueFamily> CommandPool<Q> {
     }
 }
 
+/// Collection of command pool configurations for all queue families.
 pub struct CommandPools<
     CG: Store<Vec<CommandPool<families::Graphics>>, Vec<CommandPoolInfo<families::Graphics>>>,
     CC: Store<Vec<CommandPool<families::Compute>>, Vec<CommandPoolInfo<families::Compute>>>,
@@ -189,6 +217,7 @@ impl Default for CommandPools<Absent, Absent, Absent, Absent, Absent> {
     }
 }
 
+/// Collection of command pool runtime information for all queue families.
 pub struct CommandPoolInfos<
     CG: Store<Vec<CommandPool<families::Graphics>>, Vec<CommandPoolInfo<families::Graphics>>>,
     CC: Store<Vec<CommandPool<families::Compute>>, Vec<CommandPoolInfo<families::Compute>>>,

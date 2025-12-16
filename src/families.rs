@@ -1,10 +1,25 @@
 use ash::vk;
 
+/// Trait defining a Vulkan queue family type.
+///
+/// This trait is implemented by zero-sized marker types representing different
+/// queue families.
+///
+/// # Implementors
+///
+/// - [`Graphics`]
+/// - [`Compute`]
+/// - [`Transfer`]
+/// - [`Sparse`]
+/// - [`Protected`]
 pub trait QueueFamily: Sized {
+    /// Accesses the field for this queue family.
     fn access<T>(families: &Families<T>) -> &T;
+    /// Mutably accesses the field for this queue family.
     fn access_mut<T>(families: &mut Families<T>) -> &mut T;
 }
 
+/// Marker type for graphics queue family.
 pub struct Graphics;
 impl QueueFamily for Graphics {
     fn access<T>(families: &Families<T>) -> &T {
@@ -15,6 +30,7 @@ impl QueueFamily for Graphics {
     }
 }
 
+/// Marker type for compute queue family.
 pub struct Compute;
 impl QueueFamily for Compute {
     fn access<T>(families: &Families<T>) -> &T {
@@ -25,6 +41,7 @@ impl QueueFamily for Compute {
     }
 }
 
+/// Marker type for transfer queue family.
 pub struct Transfer;
 impl QueueFamily for Transfer {
     fn access<T>(families: &Families<T>) -> &T {
@@ -35,6 +52,7 @@ impl QueueFamily for Transfer {
     }
 }
 
+/// Marker type for sparse binding queue family
 pub struct Sparse;
 impl QueueFamily for Sparse {
     fn access<T>(families: &Families<T>) -> &T {
@@ -45,6 +63,7 @@ impl QueueFamily for Sparse {
     }
 }
 
+/// Marker type for protected memory queue family.
 pub struct Protected;
 impl QueueFamily for Protected {
     fn access<T>(families: &Families<T>) -> &T {
@@ -55,6 +74,11 @@ impl QueueFamily for Protected {
     }
 }
 
+/// Container for data associated with each queue family type.
+///
+/// This struct stores one value for each queue family type (graphics, compute,
+/// transfer, sparse, and protected). It provides type-safe access through the
+/// [`QueueFamily`] trait.
 #[derive(Clone, Copy, Debug)]
 pub struct Families<T> {
     pub graphics: T,
@@ -77,18 +101,43 @@ impl<T: Default> Default for Families<T> {
 }
 
 impl<T> Families<T> {
+    /// Gets a reference to the data for a specific queue family.
+    ///
+    /// # Type Parameters
+    ///
+    /// `Q` - The queue family type to access
     pub fn get<Q: QueueFamily>(&self) -> &T {
         Q::access(self)
     }
+
+    /// Gets a mutable reference to the data for a specific queue family.
+    ///
+    /// # Type Parameters
+    ///
+    /// `Q` - The queue family type to access
     pub fn get_mut<Q: QueueFamily>(&mut self) -> &mut T {
         Q::access_mut(self)
     }
+
+    /// Sets the value for a specific queue family.
+    ///
+    /// # Type Parameters
+    ///
+    /// `Q` - The queue family type to set
+    ///
+    /// # Arguments
+    ///
+    /// `value` - The value to set
     pub fn set<Q: QueueFamily>(&mut self, value: T) {
         *Q::access_mut(self) = value;
     }
 }
 
 impl Families<Option<u32>> {
+    /// Queries available queue families from a physical device.
+    ///
+    /// This function returns which queue families are available and their indices for passed
+    /// device.
     pub fn query(instance: &ash::Instance, physical_device: vk::PhysicalDevice) -> Self {
         let mut families: Self = Default::default();
         let queue_family_properties =
@@ -118,6 +167,7 @@ impl Families<Option<u32>> {
         families
     }
 
+    /// Returns a vector of unique queue family indices.
     pub fn unique_indices(&self) -> Vec<u32> {
         let mut set = std::collections::HashSet::new();
 
@@ -140,6 +190,7 @@ impl Families<Option<u32>> {
         set.into_iter().collect()
     }
 
+    /// Creates Vulkan queue create info structures.
     pub fn make_create_info<'a>(
         &'a self,
         priorities: &'a [f32; 1],
@@ -154,6 +205,13 @@ impl Families<Option<u32>> {
             .collect()
     }
 
+    /// Filters queue families to only those that are required.
+    ///
+    /// Sets indices to `None` for queue families not marked as required.
+    ///
+    /// # Arguments
+    ///
+    /// `required` - Boolean flags indicating which families are required
     pub fn filter_required(mut self, required: &Families<bool>) -> Self {
         if !required.graphics {
             self.graphics = None;
@@ -175,16 +233,29 @@ impl Families<Option<u32>> {
 }
 
 impl Families<bool> {
+    // TODO: Consider removing that function.
+    /// Checks if any queue family is required.
+    ///
+    /// # Returns
+    ///
+    /// `true` if at least one queue family is marked as required
     pub fn any_required(&self) -> bool {
         self.graphics || self.compute || self.transfer || self.sparse || self.protected
     }
 
+    // TODO: Consider removing that function.
+    /// Checks if a specific queue family is required.
+    ///
+    /// # Type Parameters
+    ///
+    /// `Q` - The queue family type to check
     pub fn is_required<Q: QueueFamily>(&self) -> bool {
         *self.get::<Q>()
     }
 }
 
 impl Families<Option<vk::Queue>> {
+    /// Creates queue handles from queue family indices.
     pub fn new(device: &ash::Device, indices: Families<Option<u32>>) -> Self {
         let graphics = indices
             .graphics

@@ -8,10 +8,32 @@ use ash::vk;
 use core::fmt;
 use std::ffi::CString;
 
+/// Trait for creating Vulkan instances.
+///
+/// This trait abstracts the creation of instances for both [`Present`] and [`Absent`] states,
+/// allowing the build process to work generically over both cases.
+///
+/// # Type Parameters
+///
+/// * `S` - The presence marker indicating whether an instance should be created
 pub trait CreateInstance<S>
 where
     S: Store<Instance, InstanceInfo>,
 {
+    /// Creates an instance from the configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The instance configuration (or `()` if absent)
+    /// * `entry` - The Vulkan entry point
+    ///
+    /// # Returns
+    ///
+    /// The created instance info (or `()` if absent)
+    ///
+    /// # Errors
+    ///
+    /// Returns a Vulkan error if instance creation fails.
     fn create(config: S::StoredConfig, entry: &ash::Entry) -> Result<S::StoredInfo, vk::Result>;
 }
 
@@ -27,6 +49,10 @@ impl CreateInstance<Present> for Present {
     }
 }
 
+/// Runtime information for a created Vulkan instance.
+///
+/// This struct wraps the ash `Instance` handle and implements `Drop` to ensure
+/// proper cleanup when the instance is no longer needed.
 pub struct InstanceInfo(pub ash::Instance);
 
 impl fmt::Debug for InstanceInfo {
@@ -45,6 +71,10 @@ impl Drop for InstanceInfo {
     }
 }
 
+/// Builder for configuring a Vulkan instance.
+///
+/// The `Instance` struct provides a fluent API for specifying instance creation parameters
+/// including API version, application information, extensions, and validation layers.
 pub struct Instance {
     api_version: (u32, u32, u32),
     app_name: Option<CString>,
@@ -70,31 +100,44 @@ impl Default for Instance {
 }
 
 impl Instance {
+    // Sets the Vulkan API version to request.
     pub fn api_version(mut self, major: u32, minor: u32, patch: u32) -> Self {
         self.api_version = (major, minor, patch);
         self
     }
+
+    /// Sets the application name.
     pub fn app_name(mut self, app_name: CString) -> Self {
         self.app_name = Some(app_name);
         self
     }
+
+    /// Sets the application version.
     pub fn app_version(mut self, major: u32, minor: u32, patch: u32) -> Self {
         self.app_version = Some((patch, minor, major));
         self
     }
+
+    /// Sets the engine name.
     pub fn engine_name(mut self, engine_name: CString) -> Self {
         self.engine_name = Some(engine_name);
         self
     }
+
+    /// Sets the engine version.
     pub fn engine_version(mut self, major: u32, minor: u32, patch: u32) -> Self {
         self.engine_version = Some((patch, minor, major));
         self
     }
+
+
+    /// Sets the instance extensions to enable.
     pub fn extensions(mut self, extensions: Vec<CString>) -> Self {
         self.extensions = Some(extensions);
         self
     }
     // TODO: think about disabling that in release build
+    /// Enables validation layers.
     pub fn validation(mut self, layers: Vec<CString>) -> Self {
         self.validation = Some(layers);
         self
