@@ -203,6 +203,12 @@ impl Device {
         self.required_queues = queues;
         self
     }
+
+    fn require_swapchain(mut self) -> Self {
+        self.required_extensions
+            .insert(CString::from(c"VK_KHR_swapchain"));
+        self
+    }
 }
 
 impl Device {
@@ -211,8 +217,16 @@ impl Device {
         constraints: DeviceConstraints,
         instance: &ash::Instance,
     ) -> Result<DeviceInfo, vk::Result> {
-        let physical_device = self
-            .require_queues(constraints.required_queues)
+        let mut requirements = self;
+
+        if constraints.required_queues.any_required() {
+            requirements = requirements.require_queues(constraints.required_queues);
+        }
+        if constraints.required_swapchain {
+            requirements = requirements.require_swapchain();
+        }
+
+        let physical_device = requirements
             .select(instance)?
             .ok_or(vk::Result::ERROR_FEATURE_NOT_PRESENT)?;
 
