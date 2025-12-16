@@ -68,6 +68,7 @@ pub struct DeviceInfo {
     pub queue_handles: families::Families<Option<vk::Queue>>,
 }
 
+// TODO: Refactor new to be create function under Device.
 impl DeviceInfo {
     fn new(
         physical: PhysicalDeviceInfo,

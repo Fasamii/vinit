@@ -3,7 +3,6 @@ use crate::families;
 use crate::{Absent, FieldConfig, FieldInfo, Present, Store};
 use crate::{Apply};
 use crate::base::BaseConfig;
-use crate::{SatisfiesDeps, Unsatisfied};
 use ash::vk;
 use core::fmt;
 use std::marker::PhantomData;
@@ -30,18 +29,20 @@ where
     }
 }
 
-impl<Q: families::QueueFamily, D> CreateCommandPool<Q, Present, D> for Present
-where
-    D: Store<device::Device, device::DeviceInfo>,
-    (): SatisfiesDeps<D, Satisfied = Unsatisfied>,
-{
-    fn create(
-        _configs: Vec<CommandPool<Q>>,
-        _device: &D::StoredInfo,
-    ) -> Result<Vec<CommandPoolInfo<Q>>, vk::Result> {
-        Err(vk::Result::ERROR_INITIALIZATION_FAILED)
-    }
-}
+// TODO: Remove that entirely if there wont be any problems because of commenting that out
+// NOTE: Removed in order to keep errors compile time
+// impl<Q: families::QueueFamily, D> CreateCommandPool<Q, Present, D> for Present
+// where
+//     D: Store<device::Device, device::DeviceInfo>,
+//     (): SatisfiesDeps<D, Satisfied = Unsatisfied>,
+// {
+//     fn create(
+//         _configs: Vec<CommandPool<Q>>,
+//         _device: &D::StoredInfo,
+//     ) -> Result<Vec<CommandPoolInfo<Q>>, vk::Result> {
+//         Err(vk::Result::ERROR_INITIALIZATION_FAILED)
+//     }
+// }
 
 impl<Q: families::QueueFamily> CreateCommandPool<Q, Present, Present> for Present {
     fn create(
@@ -263,78 +264,6 @@ where
         f.debug_struct("CommandPoolInfos").finish()
     }
 }
-
-// NOTE: May be useful later but keep commented out for now
-// pub enum CommandPoolConfigFamily {
-//     Graphics(CommandPoolConfig<families::Graphics>),
-//     Compute(CommandPoolConfig<families::Compute>),
-//     Transfer(CommandPoolConfig<families::Transfer>),
-//     Sparse(CommandPoolConfig<families::Sparse>),
-//     Protected(CommandPoolConfig<families::Protected>),
-// }
-//
-// impl From<CommandPoolConfig<families::Graphics>> for CommandPoolConfigFamily {
-//     fn from(config: CommandPoolConfig<families::Graphics>) -> Self {
-//         CommandPoolConfigFamily::Graphics(config)
-//     }
-// }
-//
-// impl From<CommandPoolConfig<families::Compute>> for CommandPoolConfigFamily {
-//     fn from(config: CommandPoolConfig<families::Compute>) -> Self {
-//         CommandPoolConfigFamily::Compute(config)
-//     }
-// }
-//
-// impl From<CommandPoolConfig<families::Transfer>> for CommandPoolConfigFamily {
-//     fn from(config: CommandPoolConfig<families::Transfer>) -> Self {
-//         CommandPoolConfigFamily::Transfer(config)
-//     }
-// }
-//
-// impl From<CommandPoolConfig<families::Sparse>> for CommandPoolConfigFamily {
-//     fn from(config: CommandPoolConfig<families::Sparse>) -> Self {
-//         CommandPoolConfigFamily::Sparse(config)
-//     }
-// }
-//
-// impl From<CommandPoolConfig<families::Protected>> for CommandPoolConfigFamily {
-//     fn from(config: CommandPoolConfig<families::Protected>) -> Self {
-//         CommandPoolConfigFamily::Protected(config)
-//     }
-// }
-//
-// impl CommandPoolConfigFamily {
-//     pub fn get_graphics(&self) -> Option<&CommandPoolConfig<families::Graphics>> {
-//         match self {
-//             CommandPoolConfigFamily::Graphics(command_pool_config) => Some(command_pool_config),
-//             _ => None,
-//         }
-//     }
-//     pub fn get_compute(&self) -> Option<&CommandPoolConfig<families::Compute>> {
-//         match self {
-//             CommandPoolConfigFamily::Compute(command_pool_config) => Some(command_pool_config),
-//             _ => None,
-//         }
-//     }
-//     pub fn get_transfer(&self) -> Option<&CommandPoolConfig<families::Transfer>> {
-//         match self {
-//             CommandPoolConfigFamily::Transfer(command_pool_config) => Some(command_pool_config),
-//             _ => None,
-//         }
-//     }
-//     pub fn get_sparse(&self) -> Option<&CommandPoolConfig<families::Sparse>> {
-//         match self {
-//             CommandPoolConfigFamily::Sparse(command_pool_config) => Some(command_pool_config),
-//             _ => None,
-//         }
-//     }
-//     pub fn get_protected(&self) -> Option<&CommandPoolConfig<families::Protected>> {
-//         match self {
-//             CommandPoolConfigFamily::Protected(command_pool_config) => Some(command_pool_config),
-//             _ => None,
-//         }
-//     }
-// }
 
 trait AppendToField<T> {
     fn append_or_create(self, item: T) -> Vec<T>;
