@@ -1,39 +1,5 @@
-// IMPORTANT: Requiring swapchain should pass additional required extensions to the device create
-
 use crate::device;
 use ash::{khr, vk};
-
-// pub trait BuildSwapchain<S: Store<SwapchainInfo>> {
-//     fn build_swapchain(
-//         config: Option<SwapchainConfig>,
-//         instance: &ash::Instance,
-//         device: &device::DeviceInfo,
-//     ) -> Result<S::Stored, vk::Result>;
-// }
-//
-// impl BuildSwapchain<Absent> for Absent {
-//     fn build_swapchain(
-//         _config: Option<SwapchainConfig>,
-//         _instance: &ash::Instance,
-//         _device: &device::DeviceInfo,
-//     ) -> Result<(), vk::Result> {
-//         Ok(())
-//     }
-// }
-//
-// impl BuildSwapchain<Present> for Present {
-//     fn build_swapchain(
-//         config: Option<SwapchainConfig>,
-//         instance: &ash::Instance,
-//         device: &device::DeviceInfo,
-//     ) -> Result<SwapchainInfo, vk::Result> {
-//         SwapchainInfo::new(
-//             config.unwrap_or_else(|| panic!("Attempt to create swapchain withot providing config")),
-//             instance,
-//             device,
-//         )
-//     }
-// }
 
 pub struct SwapchainInfo {
     pub swapchain: vk::SwapchainKHR,
