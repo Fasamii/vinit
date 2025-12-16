@@ -1,8 +1,9 @@
+use crate::base::BaseConfig;
 use crate::command;
 use crate::device;
 use crate::families;
+use crate::Apply;
 use crate::{Absent, Present, Store};
-use crate::{Apply, BaseConfig};
 use ash::vk;
 use core::fmt;
 use std::ffi::CString;

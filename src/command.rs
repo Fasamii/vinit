@@ -1,7 +1,8 @@
 use crate::device;
 use crate::families;
 use crate::{Absent, FieldConfig, FieldInfo, Present, Store};
-use crate::{Apply, BaseConfig};
+use crate::{Apply};
+use crate::base::BaseConfig;
 use crate::{SatisfiesDeps, Unsatisfied};
 use ash::vk;
 use core::fmt;

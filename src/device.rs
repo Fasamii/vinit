@@ -1,9 +1,10 @@
+use crate::base::BaseConfig;
 use crate::command;
 use crate::families;
 use crate::instance;
 use crate::mass;
+use crate::Apply;
 use crate::{Absent, Present, Store};
-use crate::{Apply, BaseConfig};
 use ash::vk;
 use core::fmt;
 use std::collections::HashSet;

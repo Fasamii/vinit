@@ -1,7 +1,10 @@
 use ash::vk;
 use std::ffi::CString;
 use std::sync::Once;
-use vinit::*;
+use vinit::{
+    base::{Base, BaseConfig},
+    *,
+};
 
 static INIT: Once = Once::new();
 
