@@ -2,6 +2,7 @@ use crate::command;
 use crate::device;
 use crate::families;
 use crate::instance;
+use crate::swapchain;
 use crate::{Absent, Apply, FieldConfig, FieldInfo, Present, Store};
 use ash::vk;
 use std::fmt;
@@ -22,10 +23,11 @@ use std::fmt;
 /// Resources can only be accessed if they're marked as [`Present`] in the type.
 /// This is enforced through impl blocks with specific type parameter requirements.
 #[allow(unused)]
-pub struct Base<I, D, CG, CC, CT, CS, CP>
+pub struct Base<I, D, S, CG, CC, CT, CS, CP>
 where
     I: Store<instance::Instance, instance::InstanceInfo>,
     D: Store<device::Device, device::DeviceInfo>,
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CG: Store<
         Vec<command::CommandPool<families::Graphics>>,
         Vec<command::CommandPoolInfo<families::Graphics>>,
@@ -48,6 +50,7 @@ where
     >,
 {
     pools: command::CommandPoolInfos<CG, CC, CT, CS, CP>,
+    swapchain: FieldInfo<S, swapchain::Swapchain, swapchain::SwapchainInfo>,
     device: FieldInfo<D, device::Device, device::DeviceInfo>,
     instance: FieldInfo<I, instance::Instance, instance::InstanceInfo>,
     entry: ash::Entry,
@@ -68,10 +71,11 @@ where
 /// * `CT` - Transfer command pools presence marker
 /// * `CS` - Sparse command pools presence marker
 /// * `CP` - Protected command pools presence marker
-pub struct BaseConfig<I, D, CG, CC, CT, CS, CP>
+pub struct BaseConfig<I, D, S, CG, CC, CT, CS, CP>
 where
     I: Store<instance::Instance, instance::InstanceInfo>,
     D: Store<device::Device, device::DeviceInfo>,
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CG: Store<
         Vec<command::CommandPool<families::Graphics>>,
         Vec<command::CommandPoolInfo<families::Graphics>>,
@@ -93,27 +97,30 @@ where
         Vec<command::CommandPoolInfo<families::Protected>>,
     >,
 {
-    pub instance: FieldConfig<I, instance::Instance, instance::InstanceInfo>,
+    pub pools: command::CommandPools<CG, CC, CT, CS, CP>,
+    pub swapchain: FieldConfig<S, swapchain::Swapchain, swapchain::SwapchainInfo>,
     pub device: FieldConfig<D, device::Device, device::DeviceInfo>,
     pub device_constraints: device::DeviceConstraints,
-    pub pools: command::CommandPools<CG, CC, CT, CS, CP>,
+    pub instance: FieldConfig<I, instance::Instance, instance::InstanceInfo>,
 }
 
-impl Default for BaseConfig<Absent, Absent, Absent, Absent, Absent, Absent, Absent> {
+impl Default for BaseConfig<Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent> {
     fn default() -> Self {
         Self {
-            instance: (),
+            pools: Default::default(),
+            swapchain: (),
             device: (),
             device_constraints: Default::default(),
-            pools: Default::default(),
+            instance: (),
         }
     }
 }
 
-impl<I, D, CG, CC, CT, CS, CP> BaseConfig<I, D, CG, CC, CT, CS, CP>
+impl<I, D, S, CG, CC, CT, CS, CP> BaseConfig<I, D, S, CG, CC, CT, CS, CP>
 where
     I: Store<instance::Instance, instance::InstanceInfo> + instance::CreateInstance<I>,
     D: Store<device::Device, device::DeviceInfo> + device::CreateDevice<D, I>,
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo> + swapchain::CreateSwapchain<S, D, I>,
     CG: Store<
             Vec<command::CommandPool<families::Graphics>>,
             Vec<command::CommandPoolInfo<families::Graphics>>,
@@ -148,7 +155,7 @@ where
     /// Returns a Vulkan error if any resource creation fails. Common errors include:
     /// - `ERROR_INITIALIZATION_FAILED` - Failed to load Vulkan entry point
     /// - `ERROR_FEATURE_NOT_PRESENT` - No suitable device found
-    pub fn build(self) -> Result<Base<I, D, CG, CC, CT, CS, CP>, vk::Result> {
+    pub fn build(self) -> Result<Base<I, D, S, CG, CC, CT, CS, CP>, vk::Result> {
         let entry =
             unsafe { ash::Entry::load().map_err(|_| vk::Result::ERROR_INITIALIZATION_FAILED)? };
         let instance = I::create(self.instance, &entry)?;
@@ -165,9 +172,11 @@ where
             sparse: pools_sparse,
             protected: pools_protected,
         };
+        let swapchain = S::create(self.swapchain, &instance, &device)?;
 
         Ok(Base {
             pools,
+            swapchain,
             device,
             instance,
             entry,
@@ -196,10 +205,11 @@ where
     }
 }
 
-impl<I, D, CG, CC, CT, CS, CP> fmt::Debug for Base<I, D, CG, CC, CT, CS, CP>
+impl<I, D, S, CG, CC, CT, CS, CP> fmt::Debug for Base<I, D, S, CG, CC, CT, CS, CP>
 where
     I: Store<instance::Instance, instance::InstanceInfo>,
     D: Store<device::Device, device::DeviceInfo>,
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CG: Store<
         Vec<command::CommandPool<families::Graphics>>,
         Vec<command::CommandPoolInfo<families::Graphics>>,
@@ -223,20 +233,23 @@ where
     // Add these bounds to require the StoredInfo types to implement Debug
     FieldInfo<I, instance::Instance, instance::InstanceInfo>: fmt::Debug,
     FieldInfo<D, device::Device, device::DeviceInfo>: fmt::Debug,
+    FieldInfo<S, swapchain::Swapchain, swapchain::SwapchainInfo>: fmt::Debug,
     command::CommandPoolInfos<CG, CC, CT, CS, CP>: fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Base")
             .field("Instance", &self.instance)
             .field("Device", &self.device)
+            .field("Swapchain", &self.swapchain)
             .field("Pools", &self.pools)
             .finish()
     }
 }
 
-impl<D, CG, CC, CT, CS, CP> Base<Present, D, CG, CC, CT, CS, CP>
+impl<D, S, CG, CC, CT, CS, CP> Base<Present, D, S, CG, CC, CT, CS, CP>
 where
     D: Store<device::Device, device::DeviceInfo>,
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CG: Store<
         Vec<command::CommandPool<families::Graphics>>,
         Vec<command::CommandPoolInfo<families::Graphics>>,
@@ -274,9 +287,10 @@ where
 }
 
 // Device accessors - only when D = Present
-impl<I, CG, CC, CT, CS, CP> Base<I, Present, CG, CC, CT, CS, CP>
+impl<I, S, CG, CC, CT, CS, CP> Base<I, Present, S, CG, CC, CT, CS, CP>
 where
     I: Store<instance::Instance, instance::InstanceInfo>,
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CG: Store<
         Vec<command::CommandPool<families::Graphics>>,
         Vec<command::CommandPoolInfo<families::Graphics>>,
@@ -313,10 +327,51 @@ where
     }
 }
 
-impl<I, D, CC, CT, CS, CP> Base<I, D, Present, CC, CT, CS, CP>
+impl<I, D, CG, CC, CT, CS, CP> Base<I, D, Present, CG, CC, CT, CS, CP>
 where
     I: Store<instance::Instance, instance::InstanceInfo>,
     D: Store<device::Device, device::DeviceInfo>,
+    CG: Store<
+        Vec<command::CommandPool<families::Graphics>>,
+        Vec<command::CommandPoolInfo<families::Graphics>>,
+    >,
+    CC: Store<
+        Vec<command::CommandPool<families::Compute>>,
+        Vec<command::CommandPoolInfo<families::Compute>>,
+    >,
+    CT: Store<
+        Vec<command::CommandPool<families::Transfer>>,
+        Vec<command::CommandPoolInfo<families::Transfer>>,
+    >,
+    CS: Store<
+        Vec<command::CommandPool<families::Sparse>>,
+        Vec<command::CommandPoolInfo<families::Sparse>>,
+    >,
+    CP: Store<
+        Vec<command::CommandPool<families::Protected>>,
+        Vec<command::CommandPoolInfo<families::Protected>>,
+    >,
+{
+    /// Gets a mutable reference to the swapchain.
+    ///
+    /// This method is only available when the swapchain is [`Present`].
+    pub fn swapchain(&self) -> &swapchain::SwapchainInfo {
+        &self.swapchain
+    }
+
+    /// Gets a mutable reference to the swapchain.
+    ///
+    /// This method is only available when the swapchain is [`Present`].
+    pub fn swapchain_mut(&mut self) -> &mut swapchain::SwapchainInfo {
+        &mut self.swapchain
+    }
+}
+
+impl<I, D, S, CC, CT, CS, CP> Base<I, D, S, Present, CC, CT, CS, CP>
+where
+    I: Store<instance::Instance, instance::InstanceInfo>,
+    D: Store<device::Device, device::DeviceInfo>,
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CC: Store<
         Vec<command::CommandPool<families::Compute>>,
         Vec<command::CommandPoolInfo<families::Compute>>,
@@ -349,10 +404,11 @@ where
     }
 }
 
-impl<I, D, CG, CT, CS, CP> Base<I, D, CG, Present, CT, CS, CP>
+impl<I, D, S, CG, CT, CS, CP> Base<I, D, S, CG, Present, CT, CS, CP>
 where
     I: Store<instance::Instance, instance::InstanceInfo>,
     D: Store<device::Device, device::DeviceInfo>,
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CG: Store<
         Vec<command::CommandPool<families::Graphics>>,
         Vec<command::CommandPoolInfo<families::Graphics>>,
@@ -385,10 +441,11 @@ where
     }
 }
 
-impl<I, D, CG, CC, CS, CP> Base<I, D, CG, CC, Present, CS, CP>
+impl<I, D, S, CG, CC, CS, CP> Base<I, D, S, CG, CC, Present, CS, CP>
 where
     I: Store<instance::Instance, instance::InstanceInfo>,
     D: Store<device::Device, device::DeviceInfo>,
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CG: Store<
         Vec<command::CommandPool<families::Graphics>>,
         Vec<command::CommandPoolInfo<families::Graphics>>,
@@ -421,10 +478,11 @@ where
     }
 }
 
-impl<I, D, CG, CC, CT, CP> Base<I, D, CG, CC, CT, Present, CP>
+impl<I, D, S, CG, CC, CT, CP> Base<I, D, S, CG, CC, CT, Present, CP>
 where
     I: Store<instance::Instance, instance::InstanceInfo>,
     D: Store<device::Device, device::DeviceInfo>,
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CG: Store<
         Vec<command::CommandPool<families::Graphics>>,
         Vec<command::CommandPoolInfo<families::Graphics>>,
@@ -457,10 +515,11 @@ where
     }
 }
 
-impl<I, D, CG, CC, CT, CS> Base<I, D, CG, CC, CT, CS, Present>
+impl<I, D, S, CG, CC, CT, CS> Base<I, D, S, CG, CC, CT, CS, Present>
 where
     I: Store<instance::Instance, instance::InstanceInfo>,
     D: Store<device::Device, device::DeviceInfo>,
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CG: Store<
         Vec<command::CommandPool<families::Graphics>>,
         Vec<command::CommandPoolInfo<families::Graphics>>,
@@ -495,10 +554,11 @@ where
     }
 }
 
-impl<I, D, CG, CC, CT, CS, CP> Base<I, D, CG, CC, CT, CS, CP>
+impl<I, D, S, CG, CC, CT, CS, CP> Base<I, D, S, CG, CC, CT, CS, CP>
 where
     I: Store<instance::Instance, instance::InstanceInfo>,
     D: Store<device::Device, device::DeviceInfo>,
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CG: Store<
         Vec<command::CommandPool<families::Graphics>>,
         Vec<command::CommandPoolInfo<families::Graphics>>,

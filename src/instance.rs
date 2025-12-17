@@ -3,6 +3,7 @@ use crate::command;
 use crate::device;
 use crate::families;
 use crate::Apply;
+use crate::swapchain;
 use crate::{Absent, Present, Store};
 use ash::vk;
 use core::fmt;
@@ -198,9 +199,10 @@ impl Instance {
     }
 }
 
-impl<D, CG, CC, CT, CS, CP> Apply<BaseConfig<Absent, D, CG, CC, CT, CS, CP>> for Instance
+impl<D, S, CG, CC, CT, CS, CP> Apply<BaseConfig<Absent, D, S, CG, CC, CT, CS, CP>> for Instance
 where
     D: Store<device::Device, device::DeviceInfo>,
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CG: Store<
         Vec<command::CommandPool<families::Graphics>>,
         Vec<command::CommandPoolInfo<families::Graphics>>,
@@ -222,11 +224,12 @@ where
         Vec<command::CommandPoolInfo<families::Protected>>,
     >,
 {
-    type Out = BaseConfig<Present, D, CG, CC, CT, CS, CP>;
+    type Out = BaseConfig<Present, D, S, CG, CC, CT, CS, CP>;
 
-    fn apply(self, config: BaseConfig<Absent, D, CG, CC, CT, CS, CP>) -> Self::Out {
+    fn apply(self, config: BaseConfig<Absent, D, S, CG, CC, CT, CS, CP>) -> Self::Out {
         BaseConfig {
             instance: self,
+            swapchain: config.swapchain,
             device: config.device,
             device_constraints: config.device_constraints,
             pools: config.pools,

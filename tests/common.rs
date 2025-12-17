@@ -360,7 +360,7 @@ fn test_move_semantics() {
         .build()
         .expect("Failed to create base");
 
-    fn take_ownership(_base: Base<Present, Present, Present, Absent, Absent, Absent, Absent>) {
+    fn take_ownership(_base: Base<Present, Present, Absent, Present, Absent, Absent, Absent, Absent>) {
         log::info!("Took ownership of base");
     }
 
@@ -638,4 +638,17 @@ fn test_api_version_1_3() {
         Ok(_) => log::info!("Vulkan 1.3 supported"),
         Err(e) => log::warn!("Vulkan 1.3 not supported: {:?}", e),
     }
+}
+
+#[test]
+fn test_create_with_swapchain() {
+    let base = BaseConfig::default()
+        .with(instance::Instance::default())
+        .with(device::Device::default())
+        .with(swapchain::Swapchain::default())
+        .build()
+        .expect("Failed to build base");
+
+    let _swapchain = base.swapchain();
+    log::info!("Created swapchain");
 }

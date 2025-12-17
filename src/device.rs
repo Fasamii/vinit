@@ -3,6 +3,7 @@ use crate::command;
 use crate::families;
 use crate::instance;
 use crate::mass;
+use crate::swapchain;
 use crate::Apply;
 use crate::{Absent, Present, Store};
 use ash::vk;
@@ -93,10 +94,6 @@ impl DeviceInfo {
             .enabled_features(&physical.enabled_features)
             .enabled_extension_names(&extension_ptrs)
             .queue_create_infos(&queue_create_info);
-
-        log::info!(
-            "device_create_info = {device_create_info:#?}\n queue_create_info = {queue_create_info:#?}"
-        );
 
         let device =
             unsafe { instance.create_device(physical.physical_device, &device_create_info, None)? };
@@ -453,8 +450,9 @@ impl Default for DeviceConstraints {
     }
 }
 
-impl<CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Absent, CG, CC, CT, CS, CP>> for Device
+impl<S, CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Absent, S, CG, CC, CT, CS, CP>> for Device
 where
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CG: Store<
         Vec<command::CommandPool<families::Graphics>>,
         Vec<command::CommandPoolInfo<families::Graphics>>,
@@ -476,10 +474,11 @@ where
         Vec<command::CommandPoolInfo<families::Protected>>,
     >,
 {
-    type Out = BaseConfig<Present, Present, CG, CC, CT, CS, CP>;
-    fn apply(self, config: BaseConfig<Present, Absent, CG, CC, CT, CS, CP>) -> Self::Out {
+    type Out = BaseConfig<Present, Present, S, CG, CC, CT, CS, CP>;
+    fn apply(self, config: BaseConfig<Present, Absent, S, CG, CC, CT, CS, CP>) -> Self::Out {
         BaseConfig {
             instance: config.instance,
+            swapchain: config.swapchain,
             device: self,
             device_constraints: config.device_constraints,
             pools: config.pools,

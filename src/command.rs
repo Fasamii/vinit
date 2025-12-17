@@ -1,5 +1,6 @@
 use crate::device;
 use crate::families;
+use crate::swapchain;
 use crate::{Absent, FieldConfig, FieldInfo, Present, Store};
 use crate::{Apply};
 use crate::base::BaseConfig;
@@ -296,9 +297,10 @@ impl<T> AppendToField<T> for Vec<T> {
     }
 }
 
-impl<CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Present, CG, CC, CT, CS, CP>>
+impl<S, CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Present, S, CG, CC, CT, CS, CP>>
     for CommandPool<families::Graphics>
 where
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CG: Store<Vec<CommandPool<families::Graphics>>, Vec<CommandPoolInfo<families::Graphics>>>,
     CC: Store<Vec<CommandPool<families::Compute>>, Vec<CommandPoolInfo<families::Compute>>>,
     CT: Store<Vec<CommandPool<families::Transfer>>, Vec<CommandPoolInfo<families::Transfer>>>,
@@ -306,13 +308,14 @@ where
     CP: Store<Vec<CommandPool<families::Protected>>, Vec<CommandPoolInfo<families::Protected>>>,
     <CG as Store<Vec<CommandPool<families::Graphics>>, Vec<CommandPoolInfo<families::Graphics>>>>::StoredConfig: AppendToField<CommandPool<families::Graphics>>,
 {
-    type Out = BaseConfig<Present, Present, Present, CC, CT, CS, CP>;
-    fn apply(self, config: BaseConfig<Present, Present, CG, CC, CT, CS, CP>) -> Self::Out {
+    type Out = BaseConfig<Present, Present, S,Present,  CC, CT, CS, CP>;
+    fn apply(self, config: BaseConfig<Present, Present, S, CG, CC, CT, CS, CP>) -> Self::Out {
         let mut required_queues = config.device_constraints.required_queues;
         required_queues.set::<families::Graphics>(true);
         let graphics = config.pools.graphics.append_or_create(self);
         BaseConfig {
             instance: config.instance,
+            swapchain: config.swapchain,
             device: config.device,
             device_constraints: device::DeviceConstraints {
                 required_queues,
@@ -329,9 +332,10 @@ where
     }
 }
 
-impl<CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Present, CG, CC, CT, CS, CP>>
+impl<S, CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Present, S, CG, CC, CT, CS, CP>>
     for CommandPool<families::Compute>
 where
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CG: Store<Vec<CommandPool<families::Graphics>>, Vec<CommandPoolInfo<families::Graphics>>>,
     CC: Store<Vec<CommandPool<families::Compute>>, Vec<CommandPoolInfo<families::Compute>>>,
     CT: Store<Vec<CommandPool<families::Transfer>>, Vec<CommandPoolInfo<families::Transfer>>>,
@@ -339,13 +343,14 @@ where
     CP: Store<Vec<CommandPool<families::Protected>>, Vec<CommandPoolInfo<families::Protected>>>,
     <CC as Store<Vec<CommandPool<families::Compute>>, Vec<CommandPoolInfo<families::Compute>>>>::StoredConfig: AppendToField<CommandPool<families::Compute>>,
 {
-    type Out = BaseConfig<Present, Present, CG, Present, CT, CS, CP>;
-    fn apply(self, config: BaseConfig<Present, Present, CG, CC, CT, CS, CP>) -> Self::Out {
+    type Out = BaseConfig<Present, Present, S, CG, Present, CT, CS, CP>;
+    fn apply(self, config: BaseConfig<Present, Present, S, CG, CC, CT, CS, CP>) -> Self::Out {
         let mut required_queues = config.device_constraints.required_queues;
         required_queues.set::<families::Compute>(true);
         let compute = config.pools.compute.append_or_create(self);
         BaseConfig {
             instance: config.instance,
+            swapchain: config.swapchain,
             device: config.device,
             device_constraints: device::DeviceConstraints {
                 required_queues,
@@ -362,9 +367,10 @@ where
     }
 }
 
-impl<CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Present, CG, CC, CT, CS, CP>>
+impl<S, CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Present, S, CG, CC, CT, CS, CP>>
     for CommandPool<families::Transfer>
 where
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CG: Store<Vec<CommandPool<families::Graphics>>, Vec<CommandPoolInfo<families::Graphics>>>,
     CC: Store<Vec<CommandPool<families::Compute>>, Vec<CommandPoolInfo<families::Compute>>>,
     CT: Store<Vec<CommandPool<families::Transfer>>, Vec<CommandPoolInfo<families::Transfer>>>,
@@ -372,13 +378,14 @@ where
     CP: Store<Vec<CommandPool<families::Protected>>, Vec<CommandPoolInfo<families::Protected>>>,
     <CT as Store<Vec<CommandPool<families::Transfer>>, Vec<CommandPoolInfo<families::Transfer>>>>::StoredConfig: AppendToField<CommandPool<families::Transfer>>,
 {
-    type Out = BaseConfig<Present, Present, CG, CC, Present, CS, CP>;
-    fn apply(self, config: BaseConfig<Present, Present, CG, CC, CT, CS, CP>) -> Self::Out {
+    type Out = BaseConfig<Present, Present, S, CG, CC, Present, CS, CP>;
+    fn apply(self, config: BaseConfig<Present, Present, S, CG, CC, CT, CS, CP>) -> Self::Out {
         let mut required_queues = config.device_constraints.required_queues;
         required_queues.set::<families::Transfer>(true);
         let transfer = config.pools.transfer.append_or_create(self);
         BaseConfig {
             instance: config.instance,
+            swapchain: config.swapchain,
             device: config.device,
             device_constraints: device::DeviceConstraints {
                 required_queues,
@@ -394,9 +401,10 @@ where
         }
     }
 }
-impl<CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Present, CG, CC, CT, CS, CP>>
+impl<S, CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Present, S, CG, CC, CT, CS, CP>>
     for CommandPool<families::Sparse>
 where
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CG: Store<Vec<CommandPool<families::Graphics>>, Vec<CommandPoolInfo<families::Graphics>>>,
     CC: Store<Vec<CommandPool<families::Compute>>, Vec<CommandPoolInfo<families::Compute>>>,
     CT: Store<Vec<CommandPool<families::Transfer>>, Vec<CommandPoolInfo<families::Transfer>>>,
@@ -404,13 +412,14 @@ where
     CP: Store<Vec<CommandPool<families::Protected>>, Vec<CommandPoolInfo<families::Protected>>>,
     <CS as Store<Vec<CommandPool<families::Sparse>>, Vec<CommandPoolInfo<families::Sparse>>>>::StoredConfig: AppendToField<CommandPool<families::Sparse>>,
 {
-    type Out = BaseConfig<Present, Present, CG, CC, CT, Present, CP>;
-    fn apply(self, config: BaseConfig<Present, Present, CG, CC, CT, CS, CP>) -> Self::Out {
+    type Out = BaseConfig<Present, Present, S, CG, CC, CT, Present, CP>;
+    fn apply(self, config: BaseConfig<Present, Present, S, CG, CC, CT, CS, CP>) -> Self::Out {
         let mut required_queues = config.device_constraints.required_queues;
         required_queues.set::<families::Sparse>(true);
         let sparse = config.pools.sparse.append_or_create(self);
         BaseConfig {
             instance: config.instance,
+            swapchain: config.swapchain,
             device: config.device,
             device_constraints: device::DeviceConstraints {
                 required_queues,
@@ -426,9 +435,10 @@ where
         }
     }
 }
-impl<CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Present, CG, CC, CT, CS, CP>>
+impl<S, CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Present, S, CG, CC, CT, CS, CP>>
     for CommandPool<families::Protected>
 where
+    S: Store<swapchain::Swapchain, swapchain::SwapchainInfo>,
     CG: Store<Vec<CommandPool<families::Graphics>>, Vec<CommandPoolInfo<families::Graphics>>>,
     CC: Store<Vec<CommandPool<families::Compute>>, Vec<CommandPoolInfo<families::Compute>>>,
     CT: Store<Vec<CommandPool<families::Transfer>>, Vec<CommandPoolInfo<families::Transfer>>>,
@@ -436,13 +446,14 @@ where
     CP: Store<Vec<CommandPool<families::Protected>>, Vec<CommandPoolInfo<families::Protected>>>,
     <CP as Store<Vec<CommandPool<families::Protected>>, Vec<CommandPoolInfo<families::Protected>>>>::StoredConfig: AppendToField<CommandPool<families::Protected>>,
 {
-    type Out = BaseConfig<Present, Present, CG, CC, CT, CS, Present>;
-    fn apply(self, config: BaseConfig<Present, Present, CG, CC, CT, CS, CP>) -> Self::Out {
+    type Out = BaseConfig<Present, Present, S, CG, CC, CT, CS, Present>;
+    fn apply(self, config: BaseConfig<Present, Present, S, CG, CC, CT, CS, CP>) -> Self::Out {
         let mut required_queues = config.device_constraints.required_queues;
         required_queues.set::<families::Protected>(true);
         let protected = config.pools.protected.append_or_create(self);
         BaseConfig {
             instance: config.instance,
+            swapchain: config.swapchain,
             device: config.device,
             device_constraints: device::DeviceConstraints {
                 required_queues,
