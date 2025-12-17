@@ -18,6 +18,5 @@ ash = "0.38.0"
 ash-window = "0.13.0"
 log = "0.4.29"
 static_assertions = "1.1.0"
-winit = "0.30.12"
 [dev-dependencies]
 env_logger = "0.11.8"
