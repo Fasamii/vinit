@@ -78,10 +78,10 @@ pub struct Swapchain {
     surface: vk::SurfaceKHR,
 
     min_image_count: u32,
-    image_format: vk::Format,
+    image_format: Vec<vk::Format>,
     image_sharing_mode: vk::SharingMode,
-    color_space: vk::ColorSpaceKHR,
-    present_mode: vk::PresentModeKHR,
+    color_space: Vec<vk::ColorSpaceKHR>,
+    present_mode: Vec<vk::PresentModeKHR>,
     image_usage_flags: vk::ImageUsageFlags,
     surface_transform_flags: vk::SurfaceTransformFlagsKHR,
     composite_alpha_flags: vk::CompositeAlphaFlagsKHR,
@@ -96,11 +96,12 @@ impl Swapchain {
             surface,
 
             // TODO: make that more derived from device capabilities.
-            min_image_count: 2, 
-            image_format: vk::Format::R8G8B8A8_SRGB,
+            // TODO: also make that more allow all for vec types
+            min_image_count: 2,
+            image_format: vec![vk::Format::R8G8B8A8_SRGB],
             image_sharing_mode: vk::SharingMode::EXCLUSIVE,
-            color_space: vk::ColorSpaceKHR::SRGB_NONLINEAR,
-            present_mode: vk::PresentModeKHR::FIFO,
+            color_space: vec![vk::ColorSpaceKHR::SRGB_NONLINEAR],
+            present_mode: vec![vk::PresentModeKHR::FIFO],
             image_usage_flags: vk::ImageUsageFlags::COLOR_ATTACHMENT,
             surface_transform_flags: vk::SurfaceTransformFlagsKHR::IDENTITY,
             composite_alpha_flags: vk::CompositeAlphaFlagsKHR::OPAQUE,
@@ -120,7 +121,7 @@ impl Swapchain {
         self
     }
 
-    pub fn img_format(mut self, format: vk::Format) -> Self {
+    pub fn img_format(mut self, format: Vec<vk::Format>) -> Self {
         self.image_format = format;
         self
     }
@@ -130,12 +131,12 @@ impl Swapchain {
         self
     }
 
-    pub fn color_space(mut self, color_space: vk::ColorSpaceKHR) -> Self {
+    pub fn color_space(mut self, color_space: Vec<vk::ColorSpaceKHR>) -> Self {
         self.color_space = color_space;
         self
     }
 
-    pub fn present_mode(mut self, mode: vk::PresentModeKHR) -> Self {
+    pub fn present_mode(mut self, mode: Vec<vk::PresentModeKHR>) -> Self {
         self.present_mode = mode;
         self
     }
@@ -243,15 +244,15 @@ impl Swapchain {
         let swapchain_create_info = vk::SwapchainCreateInfoKHR::default()
             .surface(surface) // TODO: Check if surface field for create info is required
             .min_image_count(self.min_image_count)
-            .image_format(self.image_format)
-            .image_color_space(self.color_space)
+            .image_format(todo!())
+            .image_color_space(todo!())
             .image_extent(self.extent)
             .image_array_layers(self.array_layers)
             .image_usage(self.image_usage_flags)
             .image_sharing_mode(self.image_sharing_mode)
             .pre_transform(self.surface_transform_flags)
             .composite_alpha(self.composite_alpha_flags)
-            .present_mode(self.present_mode)
+            .present_mode(todo!())
             .clipped(self.clipped);
         let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None)? };
         let swapchain_images = unsafe { swapchain_loader.get_swapchain_images(swapchain)? };
@@ -296,9 +297,11 @@ impl Swapchain {
 
 pub struct SwapchainRequirements {
     pub surface: vk::SurfaceKHR,
-    pub format: vk::Format,
-    pub color_space: vk::ColorSpaceKHR,
-    pub present_mode: vk::PresentModeKHR,
+    // TODO: Remember to make it work for any of the vec elemetns
+    // and also the order of elements in the vec should determine which takes priority
+    pub formats: Vec<vk::Format>,
+    pub color_spaces: Vec<vk::ColorSpaceKHR>,
+    pub present_modes: Vec<vk::PresentModeKHR>,
     pub image_usage: vk::ImageUsageFlags,
 }
 
@@ -330,11 +333,13 @@ where
     fn apply(self, config: BaseConfig<Present, Present, Absent, CG, CC, CT, CS, CP>) -> Self::Out {
         let mut device_constraints = config.device_constraints;
         device_constraints.required_swapchain = Some(SwapchainRequirements {
-            surface: self.surface,
-            format: self.image_format,
-            color_space: self.color_space,
-            present_mode: self.present_mode,
-            image_usage: self.image_usage_flags,
+            // TODO: consider changing that clone into DeviceConstraints just pointing to tthe
+            // Swapchain struct
+            surface: self.surface.clone(),
+            formats: self.image_format.clone(),
+            color_spaces: self.color_space.clone(),
+            present_modes: self.present_mode.clone(),
+            image_usage: self.image_usage_flags.clone(),
         });
 
         BaseConfig {
