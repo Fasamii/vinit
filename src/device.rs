@@ -6,6 +6,7 @@ use crate::mass;
 use crate::swapchain;
 use crate::Apply;
 use crate::{Absent, Present, Store};
+use ash::khr;
 use ash::vk;
 use core::fmt;
 use std::collections::HashSet;
@@ -219,7 +220,7 @@ impl Device {
         if constraints.required_queues.any_required() {
             requirements = requirements.require_queues(constraints.required_queues);
         }
-        if constraints.required_swapchain {
+        if !constraints.required_swapchain.is_none() {
             requirements = requirements.require_swapchain();
         }
 
@@ -438,14 +439,14 @@ impl std::fmt::Debug for PhysicalDeviceInfo {
 
 pub struct DeviceConstraints {
     pub required_queues: families::Families<bool>,
-    pub required_swapchain: bool,
+    pub required_swapchain: Option<swapchain::SwapchainRequirements>,
 }
 
 impl Default for DeviceConstraints {
     fn default() -> Self {
         Self {
             required_queues: Default::default(),
-            required_swapchain: false,
+            required_swapchain: None,
         }
     }
 }

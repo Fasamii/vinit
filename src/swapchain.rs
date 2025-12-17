@@ -75,6 +75,7 @@ impl Drop for SwapchainInfo {
 }
 
 pub struct Swapchain {
+    surface: vk::SurfaceKHR,
 
     min_image_count: u32,
     image_format: vk::Format,
@@ -89,9 +90,11 @@ pub struct Swapchain {
     clipped: bool,
 }
 
-impl Default for Swapchain {
-    fn default() -> Self {
-        Self {
+impl Swapchain {
+    pub fn default(surface: vk::SurfaceKHR) -> Swapchain {
+        Swapchain {
+            surface,
+
             min_image_count: 2,
             image_format: vk::Format::R8G8B8A8_SRGB,
             image_sharing_mode: vk::SharingMode::EXCLUSIVE,
@@ -281,13 +284,21 @@ impl Swapchain {
         Ok(SwapchainInfo {
             swapchain,
             swapchain_loader,
-            images: todo!(),
-            image_views: todo!(),
+            images,
+            image_views,
             format: todo!(),
-            extent: todo!(),
+            extent,
             device: Arc::clone(&device.device),
         })
     }
+}
+
+pub struct SwapchainRequirements {
+    pub surface: vk::SurfaceKHR,
+    pub format: vk::Format,
+    pub color_space: vk::ColorSpaceKHR,
+    pub present_mode: vk::PresentModeKHR,
+    pub image_usage: vk::ImageUsageFlags,
 }
 
 impl<CG, CC, CT, CS, CP> Apply<BaseConfig<Present, Present, Absent, CG, CC, CT, CS, CP>>
@@ -317,7 +328,14 @@ where
     type Out = BaseConfig<Present, Present, Present, CG, CC, CT, CS, CP>;
     fn apply(self, config: BaseConfig<Present, Present, Absent, CG, CC, CT, CS, CP>) -> Self::Out {
         let mut device_constraints = config.device_constraints;
-        device_constraints.required_swapchain = true;
+        device_constraints.required_swapchain = Some(SwapchainRequirements {
+            surface: self.surface,
+            format: self.image_format,
+            color_space: self.color_space,
+            present_mode: self.present_mode,
+            image_usage: self.image_usage_flags,
+        });
+
         BaseConfig {
             instance: config.instance,
             swapchain: self,

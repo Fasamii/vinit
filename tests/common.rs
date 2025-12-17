@@ -360,7 +360,9 @@ fn test_move_semantics() {
         .build()
         .expect("Failed to create base");
 
-    fn take_ownership(_base: Base<Present, Present, Absent, Present, Absent, Absent, Absent, Absent>) {
+    fn take_ownership(
+        _base: Base<Present, Present, Absent, Present, Absent, Absent, Absent, Absent>,
+    ) {
         log::info!("Took ownership of base");
     }
 
@@ -641,11 +643,12 @@ fn test_api_version_1_3() {
 }
 
 #[test]
+#[allow(unused, clippy::diverging_sub_expression)]
 fn test_create_with_swapchain() {
     let base = BaseConfig::default()
         .with(instance::Instance::default())
         .with(device::Device::default())
-        .with(swapchain::Swapchain::default())
+        .with(swapchain::Swapchain::default(todo!("...")))
         .build()
         .expect("Failed to build base");
 
