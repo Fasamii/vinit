@@ -220,7 +220,7 @@ impl Device {
         if constraints.required_queues.any_required() {
             requirements = requirements.require_queues(constraints.required_queues);
         }
-        if !constraints.required_swapchain.is_none() {
+        if constraints.required_swapchain.is_some() {
             requirements = requirements.require_swapchain();
         }
 

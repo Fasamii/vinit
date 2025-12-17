@@ -95,7 +95,8 @@ impl Swapchain {
         Swapchain {
             surface,
 
-            min_image_count: 2,
+            // TODO: make that more derived from device capabilities.
+            min_image_count: 2, 
             image_format: vk::Format::R8G8B8A8_SRGB,
             image_sharing_mode: vk::SharingMode::EXCLUSIVE,
             color_space: vk::ColorSpaceKHR::SRGB_NONLINEAR,
