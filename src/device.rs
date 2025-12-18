@@ -250,6 +250,7 @@ impl Device {
             .into_iter()
             .filter(|info| !self.require_discrete || info.is_discrete())
             .filter(|info| info.satisfies_families(self.required_queues))
+            // NOTE: extensions need to be filtered before swapchain (VK_KHR_swapchain)
             .filter(|info| info.satisfies_extensions(&self.required_extensions))
             .filter(|info| info.satisfies_properties(self.required_properties))
             .filter(|info| info.satisfies_features(self.required_features))

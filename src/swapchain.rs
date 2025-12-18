@@ -242,7 +242,7 @@ impl Swapchain {
         };
 
         let swapchain_create_info = vk::SwapchainCreateInfoKHR::default()
-            .surface(surface) // TODO: Check if surface field for create info is required
+            .surface(surface) 
             .min_image_count(self.min_image_count)
             .image_format(todo!())
             .image_color_space(todo!())
