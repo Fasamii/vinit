@@ -172,7 +172,7 @@ where
             sparse: pools_sparse,
             protected: pools_protected,
         };
-        let swapchain = S::create(self.swapchain, &instance, &device)?;
+        let swapchain = S::create(self.swapchain, &entry, &instance, &device)?;
 
         Ok(Base {
             pools,

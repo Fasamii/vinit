@@ -19,6 +19,7 @@ where
 {
     fn create(
         config: S::StoredConfig,
+        entry: &ash::Entry,
         instance: &I::StoredInfo,
         device: &D::StoredInfo,
     ) -> Result<S::StoredInfo, vk::Result>;
@@ -31,6 +32,7 @@ where
 {
     fn create(
         _config: (),
+        _entry: &ash::Entry,
         _instance: &I::StoredInfo,
         _device: &D::StoredInfo,
     ) -> Result<(), vk::Result> {
@@ -42,11 +44,11 @@ where
 impl CreateSwapchain<Present, Present, Present> for Present {
     fn create(
         config: Swapchain,
+        entry: &ash::Entry,
         instance: &instance::InstanceInfo,
         device: &device::DeviceInfo,
     ) -> Result<SwapchainInfo, vk::Result> {
-        // config.create(&instance.0, device)
-        todo!("Call create when arguments to it stablize");
+        config.create(entry, &instance.0, device)
     }
 }
 
@@ -183,11 +185,12 @@ impl Swapchain {
 impl Swapchain {
     fn create(
         self,
+        entry: &ash::Entry,
         instance: &ash::Instance,
         device: &device::DeviceInfo,
     ) -> Result<SwapchainInfo, vk::Result> {
         let swapchain_loader = khr::swapchain::Device::new(instance, &device.device);
-        let surface_loader = khr::surface::Instance::new(todo!(), instance);
+        let surface_loader = khr::surface::Instance::new(entry, instance);
 
         let (window_width, window_height) = (1920, 1080);
 
@@ -306,8 +309,6 @@ impl Swapchain {
 
 pub struct SwapchainRequirements {
     pub surface: vk::SurfaceKHR,
-    // TODO: Remember to make it work for any of the vec elemetns
-    // and also the order of elements in the vec should determine which takes priority
     pub formats: Vec<vk::Format>,
     pub color_spaces: Vec<vk::ColorSpaceKHR>,
     pub present_modes: Vec<vk::PresentModeKHR>,
