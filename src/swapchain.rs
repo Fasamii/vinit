@@ -94,14 +94,22 @@ impl Swapchain {
     pub fn default(surface: vk::SurfaceKHR) -> Swapchain {
         Swapchain {
             surface,
-
             // TODO: make that more derived from device capabilities.
-            // TODO: also make that more allow all for vec types
             min_image_count: 2,
-            image_format: vec![vk::Format::R8G8B8A8_SRGB],
+            image_format: vec![
+                vk::Format::B8G8R8A8_SRGB,
+                vk::Format::R8G8B8A8_SRGB,
+                vk::Format::B8G8R8A8_UNORM,
+                vk::Format::R8G8B8A8_UNORM,
+            ],
             image_sharing_mode: vk::SharingMode::EXCLUSIVE,
             color_space: vec![vk::ColorSpaceKHR::SRGB_NONLINEAR],
-            present_mode: vec![vk::PresentModeKHR::FIFO],
+            present_mode: vec![
+                vk::PresentModeKHR::MAILBOX,
+                vk::PresentModeKHR::IMMEDIATE,
+                vk::PresentModeKHR::FIFO,
+                vk::PresentModeKHR::FIFO_RELAXED,
+            ],
             image_usage_flags: vk::ImageUsageFlags::COLOR_ATTACHMENT,
             surface_transform_flags: vk::SurfaceTransformFlagsKHR::IDENTITY,
             composite_alpha_flags: vk::CompositeAlphaFlagsKHR::OPAQUE,
@@ -177,7 +185,6 @@ impl Swapchain {
         self,
         instance: &ash::Instance,
         device: &device::DeviceInfo,
-        surface: vk::SurfaceKHR,
     ) -> Result<SwapchainInfo, vk::Result> {
         let swapchain_loader = khr::swapchain::Device::new(instance, &device.device);
         let surface_loader = khr::surface::Instance::new(todo!(), instance);
@@ -188,19 +195,21 @@ impl Swapchain {
         let surface_caps = unsafe {
             surface_loader.get_physical_device_surface_capabilities(
                 device.physical.physical_device,
-                surface,
+                self.surface,
             )?
         };
 
         let surface_formats = unsafe {
-            surface_loader
-                .get_physical_device_surface_formats(device.physical.physical_device, surface)?
+            surface_loader.get_physical_device_surface_formats(
+                device.physical.physical_device,
+                self.surface,
+            )?
         };
 
         let present_modes = unsafe {
             surface_loader.get_physical_device_surface_present_modes(
                 device.physical.physical_device,
-                surface,
+                self.surface,
             )?
         };
 
@@ -242,7 +251,7 @@ impl Swapchain {
         };
 
         let swapchain_create_info = vk::SwapchainCreateInfoKHR::default()
-            .surface(surface) 
+            .surface(self.surface)
             .min_image_count(self.min_image_count)
             .image_format(todo!())
             .image_color_space(todo!())
