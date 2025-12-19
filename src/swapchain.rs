@@ -77,13 +77,13 @@ impl Drop for SwapchainInfo {
 }
 
 pub struct Swapchain {
-    surface: vk::SurfaceKHR,
+    surface: Box<dyn Fn(&ash::Entry, &ash::Instance) -> vk::SurfaceKHR>,
 
     min_image_count: u32,
-    image_format: Vec<vk::Format>,
+    image_formats: Vec<vk::Format>,
     image_sharing_mode: vk::SharingMode,
-    color_space: Vec<vk::ColorSpaceKHR>,
-    present_mode: Vec<vk::PresentModeKHR>,
+    color_spaces: Vec<vk::ColorSpaceKHR>,
+    present_modes: Vec<vk::PresentModeKHR>,
     image_usage_flags: vk::ImageUsageFlags,
     surface_transform_flags: vk::SurfaceTransformFlagsKHR,
     composite_alpha_flags: Vec<vk::CompositeAlphaFlagsKHR>,
@@ -93,20 +93,20 @@ pub struct Swapchain {
 }
 
 impl Swapchain {
-    pub fn default(surface: vk::SurfaceKHR) -> Swapchain {
+    pub fn default(surface: impl Fn(&ash::Entry, &ash::Instance) -> vk::SurfaceKHR + 'static) -> Swapchain {
         Swapchain {
-            surface,
+            surface: Box::new(surface),
             // TODO: make that more derived from device capabilities.
             min_image_count: 2,
-            image_format: vec![
+            image_formats: vec![
                 vk::Format::B8G8R8A8_SRGB,
                 vk::Format::R8G8B8A8_SRGB,
                 vk::Format::B8G8R8A8_UNORM,
                 vk::Format::R8G8B8A8_UNORM,
             ],
             image_sharing_mode: vk::SharingMode::EXCLUSIVE,
-            color_space: vec![vk::ColorSpaceKHR::SRGB_NONLINEAR],
-            present_mode: vec![
+            color_spaces: vec![vk::ColorSpaceKHR::SRGB_NONLINEAR],
+            present_modes: vec![
                 vk::PresentModeKHR::MAILBOX,
                 vk::PresentModeKHR::IMMEDIATE,
                 vk::PresentModeKHR::FIFO,
@@ -137,7 +137,7 @@ impl Swapchain {
     }
 
     pub fn img_format(mut self, format: Vec<vk::Format>) -> Self {
-        self.image_format = format;
+        self.image_formats = format;
         self
     }
 
@@ -147,12 +147,12 @@ impl Swapchain {
     }
 
     pub fn color_space(mut self, color_space: Vec<vk::ColorSpaceKHR>) -> Self {
-        self.color_space = color_space;
+        self.color_spaces = color_space;
         self
     }
 
     pub fn present_mode(mut self, mode: Vec<vk::PresentModeKHR>) -> Self {
-        self.present_mode = mode;
+        self.present_modes = mode;
         self
     }
 
@@ -197,81 +197,105 @@ impl Swapchain {
         let swapchain_loader = khr::swapchain::Device::new(instance, &device.device);
         let surface_loader = khr::surface::Instance::new(entry, instance);
 
-        let (window_width, window_height) = (1920, 1080);
+        let surface = (self.surface)(entry, instance);
 
         let surface_caps = unsafe {
             surface_loader.get_physical_device_surface_capabilities(
                 device.physical.physical_device,
-                self.surface,
+                surface,
             )?
         };
-
         let surface_formats = unsafe {
-            surface_loader.get_physical_device_surface_formats(
-                device.physical.physical_device,
-                self.surface,
-            )?
+            surface_loader
+                .get_physical_device_surface_formats(device.physical.physical_device, surface)?
         };
-
         let present_modes = unsafe {
             surface_loader.get_physical_device_surface_present_modes(
                 device.physical.physical_device,
-                self.surface,
+                surface,
             )?
         };
 
         let surface_format = surface_formats
             .iter()
-            .find(|f| {
-                f.format == vk::Format::B8G8R8A8_SRGB
-                    && f.color_space == vk::ColorSpaceKHR::SRGB_NONLINEAR
+            .filter_map(|sf| {
+                let format_idx = self.image_formats.iter().position(|&f| f == sf.format)?;
+                let color_idx = self
+                    .color_spaces
+                    .iter()
+                    .position(|&c| c == sf.color_space)?;
+                Some((format_idx, color_idx, *sf))
             })
-            .unwrap_or(&surface_formats[0]);
-
-        let present_mode = present_modes
+            .min_by_key(|(f_idx, c_idx, _)| (*f_idx, *c_idx))
+            .map(|(_, _, sf)| sf)
+            .ok_or(vk::Result::ERROR_FORMAT_NOT_SUPPORTED)?;
+        // TODO: make that return the mode that contains most specified modes
+        let present_mode = self
+            .present_modes
             .iter()
+            .find(|&&mode| present_modes.contains(&mode))
             .copied()
-            .find(|&mode| mode == vk::PresentModeKHR::MAILBOX)
-            .unwrap_or(vk::PresentModeKHR::FIFO);
+            .expect("make that error propagate");
 
-        let extent = if surface_caps.current_extent.width != u32::MAX {
-            surface_caps.current_extent
-        } else {
+        let extent = if let Some(fixed_extent) = Some(self.extent) {
             vk::Extent2D {
-                width: window_width.clamp(
+                width: fixed_extent.width.clamp(
                     surface_caps.min_image_extent.width,
                     surface_caps.max_image_extent.width,
                 ),
-                height: window_height.clamp(
+                height: fixed_extent.height.clamp(
                     surface_caps.min_image_extent.height,
                     surface_caps.max_image_extent.height,
                 ),
             }
+        } else if surface_caps.current_extent.width != u32::MAX {
+            surface_caps.current_extent
+        } else {
+            surface_caps.min_image_extent
         };
 
-        let image_count = {
-            let mut count = surface_caps.min_image_count + 1;
-            if surface_caps.max_image_count > 0 {
-                count = count.min(surface_caps.max_image_count);
-            }
-            count
+        // TODO: consider returning error instead of using .max()
+        let mut image_count = self.min_image_count.max(surface_caps.min_image_count);
+        if surface_caps.max_image_count > 0 {
+            // TODO: same here consider returning error instead of using .min() or allow user to
+            // specify allowed clamp
+            image_count = image_count.min(surface_caps.max_image_count);
+        }
+
+        // TODO: Also consider returning error instead
+        let pre_transform = if surface_caps
+            .supported_transforms
+            .contains(self.surface_transform_flags)
+        {
+            self.surface_transform_flags
+        } else {
+            surface_caps.current_transform
         };
+
+        let composite_alpha = self
+            .composite_alpha_flags
+            .iter()
+            .find(|&&mode| surface_caps.supported_composite_alpha.contains(mode))
+            .copied()
+            .ok_or(vk::Result::ERROR_FORMAT_NOT_SUPPORTED)?;
 
         let swapchain_create_info = vk::SwapchainCreateInfoKHR::default()
-            .surface(self.surface)
-            .min_image_count(self.min_image_count)
-            .image_format(todo!())
-            .image_color_space(todo!())
-            .image_extent(self.extent)
+            .surface(surface)
+            .min_image_count(image_count)
+            .image_format(surface_format.format)
+            .image_color_space(surface_format.color_space)
+            .image_extent(extent)
             .image_array_layers(self.array_layers)
             .image_usage(self.image_usage_flags)
             .image_sharing_mode(self.image_sharing_mode)
-            .pre_transform(self.surface_transform_flags)
-            .composite_alpha(todo!())
-            .present_mode(todo!())
+            .pre_transform(pre_transform)
+            .composite_alpha(composite_alpha)
+            .present_mode(present_mode)
             .clipped(self.clipped);
+
         let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None)? };
         let images = unsafe { swapchain_loader.get_swapchain_images(swapchain)? };
+
         let image_views = images
             .iter()
             .map(|&image| {
@@ -302,7 +326,7 @@ impl Swapchain {
             swapchain_loader,
             images,
             image_views,
-            format: todo!(),
+            format: surface_format.format,
             extent,
             device: Arc::clone(&device.device),
         })
@@ -310,7 +334,7 @@ impl Swapchain {
 }
 
 pub struct SwapchainRequirements {
-    pub surface: vk::SurfaceKHR,
+    // pub surface: vk::SurfaceKHR,
     pub formats: Vec<vk::Format>,
     pub color_spaces: Vec<vk::ColorSpaceKHR>,
     pub present_modes: Vec<vk::PresentModeKHR>,
@@ -345,10 +369,10 @@ where
     fn apply(self, config: BaseConfig<Present, Present, Absent, CG, CC, CT, CS, CP>) -> Self::Out {
         let mut device_constraints = config.device_constraints;
         device_constraints.required_swapchain = Some(SwapchainRequirements {
-            surface: self.surface,
-            formats: self.image_format.clone(),
-            color_spaces: self.color_space.clone(),
-            present_modes: self.present_mode.clone(),
+            // surface: self.surface,
+            formats: self.image_formats.clone(),
+            color_spaces: self.color_spaces.clone(),
+            present_modes: self.present_modes.clone(),
             image_usage: self.image_usage_flags,
         });
 

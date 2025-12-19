@@ -414,58 +414,57 @@ impl PhysicalDeviceInfo {
         requirements: &swapchain::SwapchainRequirements,
     ) -> bool {
         // TODO: try to make present support (queue families) on type level
-        let surface_caps = match unsafe {
-            surface_loader.get_physical_device_surface_capabilities(
-                self.physical_device,
-                requirements.surface,
-            )
-        } {
-            Ok(caps) => caps,
-            Err(_) => return false,
-        };
+        // let surface_caps = match unsafe {
+        //     surface_loader.get_physical_device_surface_capabilities(
+        //         self.physical_device,
+        //         requirements.surface,
+        //     )
+        // } {
+        //     Ok(caps) => caps,
+        //     Err(_) => return false,
+        // };
 
-        if !surface_caps
-            .supported_usage_flags
-            .contains(requirements.image_usage)
-        {
-            return false;
-        }
-        let surface_formats = match unsafe {
-            surface_loader
-                .get_physical_device_surface_formats(self.physical_device, requirements.surface)
-        } {
-            Ok(formats) => formats,
-            Err(_) => return false,
-        };
-        let format_supported = requirements.formats.iter().any(|&req_format| {
-            requirements.color_spaces.iter().any(|&req_color_space| {
-                surface_formats
-                    .iter()
-                    .any(|sf| sf.format == req_format && sf.color_space == req_color_space)
-            })
-        });
-        if !format_supported {
-            return false;
-        }
+        // if !surface_caps
+        //     .supported_usage_flags
+        //     .contains(requirements.image_usage)
+        // {
+        //     return false;
+        // }
+        // let surface_formats = match unsafe {
+        //     surface_loader
+        //         .get_physical_device_surface_formats(self.physical_device, requirements.surface)
+        // } {
+        //     Ok(formats) => formats,
+        //     Err(_) => return false,
+        // };
+        // let format_supported = requirements.formats.iter().any(|&req_format| {
+        //     requirements.color_spaces.iter().any(|&req_color_space| {
+        //         surface_formats
+        //             .iter()
+        //             .any(|sf| sf.format == req_format && sf.color_space == req_color_space)
+        //     })
+        // });
+        // if !format_supported {
+        //     return false;
+        // }
 
-        let present_modes = match unsafe {
-            surface_loader.get_physical_device_surface_present_modes(
-                self.physical_device,
-                requirements.surface,
-            )
-        } {
-            Ok(modes) => modes,
-            Err(_) => return false,
-        };
+        // let present_modes = match unsafe {
+        //     surface_loader.get_physical_device_surface_present_modes(
+        //         self.physical_device,
+        //         requirements.surface,
+        //     )
+        // } {
+        //     Ok(modes) => modes,
+        //     Err(_) => return false,
+        // };
 
-        let present_mode_supported = requirements
-            .present_modes
-            .iter()
-            .any(|req_mode| present_modes.contains(req_mode));
-
-        if !present_mode_supported {
-            return false;
-        }
+        // let present_mode_supported = requirements
+        //     .present_modes
+        //     .iter()
+        //     .any(|req_mode| present_modes.contains(req_mode));
+        // if !present_mode_supported {
+        //     return false;
+        // }
 
         true
     }

@@ -1,4 +1,6 @@
 use ash::vk;
+#[allow(deprecated)]
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use std::ffi::CString;
 use std::sync::Once;
 use vinit::{
@@ -648,7 +650,9 @@ fn test_create_with_swapchain() {
     let base = BaseConfig::default()
         .with(instance::Instance::default())
         .with(device::Device::default())
-        .with(swapchain::Swapchain::default(todo!("...")))
+        .with(swapchain::Swapchain::default(|entry, instance| {
+            todo!("Create surface");
+        }))
         .build()
         .expect("Failed to build base");
 
