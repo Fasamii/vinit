@@ -159,7 +159,7 @@ where
         let entry =
             unsafe { ash::Entry::load().map_err(|_| vk::Result::ERROR_INITIALIZATION_FAILED)? };
         let instance = I::create(self.instance, &entry)?;
-        let device = D::create(self.device, &instance, self.device_constraints)?;
+        let device = D::create(self.device, &entry, &instance, self.device_constraints)?;
         let pools_graphics = CG::create(self.pools.graphics, &device)?;
         let pools_compute = CC::create(self.pools.compute, &device)?;
         let pools_transfer = CT::create(self.pools.transfer, &device)?;

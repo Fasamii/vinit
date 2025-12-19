@@ -86,7 +86,7 @@ pub struct Swapchain {
     present_mode: Vec<vk::PresentModeKHR>,
     image_usage_flags: vk::ImageUsageFlags,
     surface_transform_flags: vk::SurfaceTransformFlagsKHR,
-    composite_alpha_flags: vk::CompositeAlphaFlagsKHR,
+    composite_alpha_flags: Vec<vk::CompositeAlphaFlagsKHR>,
     array_layers: u32,
     extent: vk::Extent2D,
     clipped: bool,
@@ -114,7 +114,12 @@ impl Swapchain {
             ],
             image_usage_flags: vk::ImageUsageFlags::COLOR_ATTACHMENT,
             surface_transform_flags: vk::SurfaceTransformFlagsKHR::IDENTITY,
-            composite_alpha_flags: vk::CompositeAlphaFlagsKHR::OPAQUE,
+            composite_alpha_flags: vec![
+                vk::CompositeAlphaFlagsKHR::OPAQUE,
+                vk::CompositeAlphaFlagsKHR::PRE_MULTIPLIED,
+                vk::CompositeAlphaFlagsKHR::POST_MULTIPLIED,
+                vk::CompositeAlphaFlagsKHR::INHERIT,
+            ],
             array_layers: 1,
             extent: vk::Extent2D {
                 width: 1920,
@@ -161,7 +166,7 @@ impl Swapchain {
         self
     }
 
-    pub fn composite_alpha_flags(mut self, flags: vk::CompositeAlphaFlagsKHR) -> Self {
+    pub fn composite_alpha_flags(mut self, flags: Vec<vk::CompositeAlphaFlagsKHR>) -> Self {
         self.composite_alpha_flags = flags;
         self
     }
@@ -194,7 +199,6 @@ impl Swapchain {
 
         let (window_width, window_height) = (1920, 1080);
 
-        // TODO: You should move that to DeviceSelector.
         let surface_caps = unsafe {
             surface_loader.get_physical_device_surface_capabilities(
                 device.physical.physical_device,
@@ -263,12 +267,10 @@ impl Swapchain {
             .image_usage(self.image_usage_flags)
             .image_sharing_mode(self.image_sharing_mode)
             .pre_transform(self.surface_transform_flags)
-            .composite_alpha(self.composite_alpha_flags)
+            .composite_alpha(todo!())
             .present_mode(todo!())
             .clipped(self.clipped);
         let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None)? };
-        let swapchain_images = unsafe { swapchain_loader.get_swapchain_images(swapchain)? };
-
         let images = unsafe { swapchain_loader.get_swapchain_images(swapchain)? };
         let image_views = images
             .iter()
@@ -343,13 +345,11 @@ where
     fn apply(self, config: BaseConfig<Present, Present, Absent, CG, CC, CT, CS, CP>) -> Self::Out {
         let mut device_constraints = config.device_constraints;
         device_constraints.required_swapchain = Some(SwapchainRequirements {
-            // TODO: consider changing that clone into DeviceConstraints just pointing to tthe
-            // Swapchain struct
-            surface: self.surface.clone(),
+            surface: self.surface,
             formats: self.image_format.clone(),
             color_spaces: self.color_space.clone(),
             present_modes: self.present_mode.clone(),
-            image_usage: self.image_usage_flags.clone(),
+            image_usage: self.image_usage_flags,
         });
 
         BaseConfig {

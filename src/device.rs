@@ -35,6 +35,7 @@ where
     /// Returns a Vulkan error if device creation fails or no suitable device is found.
     fn create(
         config: D::StoredConfig,
+        entry: &ash::Entry,
         instance: &I::StoredInfo,
         constraints: DeviceConstraints,
     ) -> Result<D::StoredInfo, vk::Result>;
@@ -46,6 +47,7 @@ where
 {
     fn create(
         _config: (),
+        _entry: &ash::Entry,
         _instance: &I::StoredInfo,
         _constraints: DeviceConstraints,
     ) -> Result<(), vk::Result> {
@@ -56,10 +58,11 @@ where
 impl CreateDevice<Present, Present> for Present {
     fn create(
         config: Device,
+        entry: &ash::Entry,
         instance: &instance::InstanceInfo,
         constraints: DeviceConstraints,
     ) -> Result<DeviceInfo, vk::Result> {
-        config.create(constraints, &instance.0)
+        config.create(constraints, entry, &instance.0)
     }
 }
 
@@ -213,6 +216,7 @@ impl Device {
     fn create(
         self,
         constraints: DeviceConstraints,
+        entry: &ash::Entry,
         instance: &ash::Instance,
     ) -> Result<DeviceInfo, vk::Result> {
         let mut requirements = self;
@@ -225,13 +229,18 @@ impl Device {
         }
 
         let physical_device = requirements
-            .select(instance)?
+            .select(entry, instance, &constraints)?
             .ok_or(vk::Result::ERROR_FEATURE_NOT_PRESENT)?;
 
         DeviceInfo::new(physical_device, constraints.required_queues, instance)
     }
 
-    fn select(&self, instance: &ash::Instance) -> Result<Option<PhysicalDeviceInfo>, vk::Result> {
+    fn select(
+        &self,
+        entry: &ash::Entry,
+        instance: &ash::Instance,
+        constraints: &DeviceConstraints,
+    ) -> Result<Option<PhysicalDeviceInfo>, vk::Result> {
         let physical_device_handles = unsafe { instance.enumerate_physical_devices()? };
         let physical_device_infos: Vec<PhysicalDeviceInfo> = physical_device_handles
             .into_iter()
@@ -246,15 +255,19 @@ impl Device {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
-        let candidates: Vec<PhysicalDeviceInfo> = physical_device_infos
+        let mut candidates: Vec<PhysicalDeviceInfo> = physical_device_infos
             .into_iter()
             .filter(|info| !self.require_discrete || info.is_discrete())
             .filter(|info| info.satisfies_families(self.required_queues))
-            // NOTE: extensions need to be filtered before swapchain (VK_KHR_swapchain)
             .filter(|info| info.satisfies_extensions(&self.required_extensions))
             .filter(|info| info.satisfies_properties(self.required_properties))
             .filter(|info| info.satisfies_features(self.required_features))
             .collect();
+
+        if let Some(requirements) = &constraints.required_swapchain {
+            let surface_loader = khr::surface::Instance::new(entry, instance);
+            candidates.retain(|info| info.satisfies_swapchain(&surface_loader, requirements));
+        }
 
         if self.prefer_best {
             Ok(candidates.into_iter().max_by_key(|info| info.score()))
@@ -393,6 +406,68 @@ impl PhysicalDeviceInfo {
         extensions
             .iter()
             .all(|required| available.contains(required.as_c_str()))
+    }
+
+    fn satisfies_swapchain(
+        &self,
+        surface_loader: &khr::surface::Instance,
+        requirements: &swapchain::SwapchainRequirements,
+    ) -> bool {
+        // TODO: try to make present support (queue families) on type level
+        let surface_caps = match unsafe {
+            surface_loader.get_physical_device_surface_capabilities(
+                self.physical_device,
+                requirements.surface,
+            )
+        } {
+            Ok(caps) => caps,
+            Err(_) => return false,
+        };
+
+        if !surface_caps
+            .supported_usage_flags
+            .contains(requirements.image_usage)
+        {
+            return false;
+        }
+        let surface_formats = match unsafe {
+            surface_loader
+                .get_physical_device_surface_formats(self.physical_device, requirements.surface)
+        } {
+            Ok(formats) => formats,
+            Err(_) => return false,
+        };
+        let format_supported = requirements.formats.iter().any(|&req_format| {
+            requirements.color_spaces.iter().any(|&req_color_space| {
+                surface_formats
+                    .iter()
+                    .any(|sf| sf.format == req_format && sf.color_space == req_color_space)
+            })
+        });
+        if !format_supported {
+            return false;
+        }
+
+        let present_modes = match unsafe {
+            surface_loader.get_physical_device_surface_present_modes(
+                self.physical_device,
+                requirements.surface,
+            )
+        } {
+            Ok(modes) => modes,
+            Err(_) => return false,
+        };
+
+        let present_mode_supported = requirements
+            .present_modes
+            .iter()
+            .any(|req_mode| present_modes.contains(req_mode));
+
+        if !present_mode_supported {
+            return false;
+        }
+
+        true
     }
 
     fn score(&self) -> u32 {
