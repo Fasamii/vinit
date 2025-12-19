@@ -155,6 +155,7 @@ where
     /// Returns a Vulkan error if any resource creation fails. Common errors include:
     /// - `ERROR_INITIALIZATION_FAILED` - Failed to load Vulkan entry point
     /// - `ERROR_FEATURE_NOT_PRESENT` - No suitable device found
+    #[allow(clippy::type_complexity)]
     pub fn build(self) -> Result<Base<I, D, S, CG, CC, CT, CS, CP>, vk::Result> {
         let entry =
             unsafe { ash::Entry::load().map_err(|_| vk::Result::ERROR_INITIALIZATION_FAILED)? };

@@ -518,6 +518,7 @@ pub struct DeviceConstraints {
     pub required_swapchain: Option<swapchain::SwapchainRequirements>,
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for DeviceConstraints {
     fn default() -> Self {
         Self {
