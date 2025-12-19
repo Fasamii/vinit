@@ -88,12 +88,14 @@ pub struct Swapchain {
     surface_transform_flags: vk::SurfaceTransformFlagsKHR,
     composite_alpha_flags: Vec<vk::CompositeAlphaFlagsKHR>,
     array_layers: u32,
-    extent: vk::Extent2D,
+    extent: Option<vk::Extent2D>,
     clipped: bool,
 }
 
 impl Swapchain {
-    pub fn default(surface: impl Fn(&ash::Entry, &ash::Instance) -> vk::SurfaceKHR + 'static) -> Swapchain {
+    pub fn default(
+        surface: impl Fn(&ash::Entry, &ash::Instance) -> vk::SurfaceKHR + 'static,
+    ) -> Swapchain {
         Swapchain {
             surface: Box::new(surface),
             // TODO: make that more derived from device capabilities.
@@ -121,10 +123,7 @@ impl Swapchain {
                 vk::CompositeAlphaFlagsKHR::INHERIT,
             ],
             array_layers: 1,
-            extent: vk::Extent2D {
-                width: 1920,
-                height: 1080,
-            },
+            extent: None,
             clipped: true,
         }
     }
@@ -177,7 +176,7 @@ impl Swapchain {
     }
 
     pub fn extent(mut self, extesnt: vk::Extent2D) -> Self {
-        self.extent = extesnt;
+        self.extent = Some(extesnt);
         self
     }
 
@@ -237,7 +236,7 @@ impl Swapchain {
             .copied()
             .expect("make that error propagate");
 
-        let extent = if let Some(fixed_extent) = Some(self.extent) {
+        let extent = if let Some(fixed_extent) = self.extent {
             vk::Extent2D {
                 width: fixed_extent.width.clamp(
                     surface_caps.min_image_extent.width,
