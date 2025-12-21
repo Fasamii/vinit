@@ -16,9 +16,8 @@ categories = ["graphics"]
 [dependencies]
 ash = "0.38.0"
 ash-window = "0.13.0"
-log = "0.4.29"
 raw-window-handle = "0.6.2"
-static_assertions = "1.1.0"
+log = "0.4.29"
 [dev-dependencies]
-env_logger = "0.11.8"
 winit = "0.30"
+env_logger = "0.11.8"

@@ -1,12 +1,12 @@
 use ash::vk;
-#[allow(deprecated)]
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
-use std::ffi::CString;
+use raw_window_handle::HasRawDisplayHandle;
+use std::ffi::{CStr, CString};
 use std::sync::Once;
 use vinit::{
     base::{Base, BaseConfig},
     *,
 };
+use winit::platform::wayland::EventLoopBuilderExtWayland;
 
 static INIT: Once = Once::new();
 
@@ -646,16 +646,31 @@ fn test_api_version_1_3() {
 
 #[test]
 #[allow(unused, clippy::diverging_sub_expression)]
-fn test_create_with_swapchain() {
+fn test_create_swapchain() {
+    let event_loop = winit::event_loop::EventLoop::builder()
+        .with_any_thread(true)
+        .build()
+        .unwrap();
+    let window_atr = winit::window::WindowAttributes::default().with_visible(false);
+    let window = event_loop.create_window(window_atr).unwrap();
+
+    let extensions =
+        ash_window::enumerate_required_extensions(window.raw_display_handle().unwrap()).unwrap();
+    let mut extensions: Vec<CString> = extensions
+        .iter()
+        .map(|&ptr| unsafe { CStr::from_ptr(ptr).to_owned() })
+        .collect();
+
     let base = BaseConfig::default()
-        .with(instance::Instance::default())
+        .with(
+            instance::Instance::default()
+                .extensions(extensions)
+                .validation(validation_layers()),
+        )
         .with(device::Device::default())
-        .with(swapchain::Swapchain::default(|entry, instance| {
-            todo!("Create surface");
-        }))
+        .with(command::CommandPool::graphics())
+        .with(swapchain::Swapchain::from_window(&window))
         .build()
         .expect("Failed to build base");
-
-    let _swapchain = base.swapchain();
     log::info!("Created swapchain");
 }

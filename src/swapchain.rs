@@ -1,6 +1,6 @@
+// TODO: Remove that lather (only for development).
 #![allow(unreachable_code)]
-
-use std::sync::Arc;
+#![allow(unused)]
 
 use crate::base::BaseConfig;
 use crate::command;
@@ -10,6 +10,8 @@ use crate::instance;
 use crate::Apply;
 use crate::{Absent, Present, Store};
 use ash::{khr, vk};
+use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+use std::sync::Arc;
 
 pub trait CreateSwapchain<S, D, I>
 where
@@ -55,14 +57,14 @@ impl CreateSwapchain<Present, Present, Present> for Present {
 pub struct SwapchainInfo {
     pub swapchain: vk::SwapchainKHR,
     pub swapchain_loader: khr::swapchain::Device,
+    pub surface: vk::SurfaceKHR,
+    pub surface_loader: khr::surface::Instance,
     pub images: Vec<vk::Image>,
     pub image_views: Vec<vk::ImageView>,
     pub format: vk::Format,
     pub extent: vk::Extent2D,
     device: Arc<ash::Device>,
 }
-
-impl SwapchainInfo {}
 
 impl Drop for SwapchainInfo {
     fn drop(&mut self) {
@@ -72,12 +74,21 @@ impl Drop for SwapchainInfo {
             }
             self.swapchain_loader
                 .destroy_swapchain(self.swapchain, None);
+            self.surface_loader.destroy_surface(self.surface, None);
         }
     }
 }
 
+enum SurfaceSource {
+    Window {
+        window: raw_window_handle::RawWindowHandle,
+        display: raw_window_handle::RawDisplayHandle,
+    },
+    Deferred(Box<dyn FnOnce(&ash::Entry, &ash::Instance) -> Result<vk::SurfaceKHR, vk::Result>>),
+}
+
 pub struct Swapchain {
-    surface: Box<dyn Fn(&ash::Entry, &ash::Instance) -> vk::SurfaceKHR>,
+    surface: SurfaceSource,
 
     min_image_count: u32,
     image_formats: Vec<vk::Format>,
@@ -93,12 +104,47 @@ pub struct Swapchain {
 }
 
 impl Swapchain {
-    pub fn default(
-        surface: impl Fn(&ash::Entry, &ash::Instance) -> vk::SurfaceKHR + 'static,
-    ) -> Swapchain {
+    pub fn from_window<W: HasDisplayHandle + HasWindowHandle>(window: &W) -> Swapchain {
         Swapchain {
-            surface: Box::new(surface),
-            // TODO: make that more derived from device capabilities.
+            surface: SurfaceSource::Window {
+                window: window.window_handle().unwrap().as_raw(),
+                display: window.display_handle().unwrap().as_raw(),
+            },
+            min_image_count: 2,
+            image_formats: vec![
+                vk::Format::B8G8R8A8_SRGB,
+                vk::Format::R8G8B8A8_SRGB,
+                vk::Format::B8G8R8A8_UNORM,
+                vk::Format::R8G8B8A8_UNORM,
+            ],
+            image_sharing_mode: vk::SharingMode::EXCLUSIVE,
+            color_spaces: vec![vk::ColorSpaceKHR::SRGB_NONLINEAR],
+            present_modes: vec![
+                vk::PresentModeKHR::MAILBOX,
+                vk::PresentModeKHR::IMMEDIATE,
+                vk::PresentModeKHR::FIFO,
+                vk::PresentModeKHR::FIFO_RELAXED,
+            ],
+            image_usage_flags: vk::ImageUsageFlags::COLOR_ATTACHMENT,
+            surface_transform_flags: vk::SurfaceTransformFlagsKHR::IDENTITY,
+            composite_alpha_flags: vec![
+                vk::CompositeAlphaFlagsKHR::OPAQUE,
+                vk::CompositeAlphaFlagsKHR::PRE_MULTIPLIED,
+                vk::CompositeAlphaFlagsKHR::POST_MULTIPLIED,
+                vk::CompositeAlphaFlagsKHR::INHERIT,
+            ],
+            array_layers: 1,
+            extent: None,
+            clipped: true,
+        }
+    }
+
+    pub fn deferred<F>(f: F) -> Self
+    where
+        F: FnOnce(&ash::Entry, &ash::Instance) -> Result<vk::SurfaceKHR, vk::Result> + 'static,
+    {
+        Swapchain {
+            surface: SurfaceSource::Deferred(Box::new(f)),
             min_image_count: 2,
             image_formats: vec![
                 vk::Format::B8G8R8A8_SRGB,
@@ -196,7 +242,12 @@ impl Swapchain {
         let swapchain_loader = khr::swapchain::Device::new(instance, &device.device);
         let surface_loader = khr::surface::Instance::new(entry, instance);
 
-        let surface = (self.surface)(entry, instance);
+        let surface = match self.surface {
+            SurfaceSource::Window { window, display } => unsafe {
+                ash_window::create_surface(entry, instance, display, window, None)?
+            },
+            SurfaceSource::Deferred(fn_once) => (fn_once)(entry, instance)?,
+        };
 
         let surface_caps = unsafe {
             surface_loader.get_physical_device_surface_capabilities(
@@ -323,6 +374,8 @@ impl Swapchain {
         Ok(SwapchainInfo {
             swapchain,
             swapchain_loader,
+            surface,
+            surface_loader,
             images,
             image_views,
             format: surface_format.format,
