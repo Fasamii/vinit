@@ -1,7 +1,3 @@
-// TODO: Remove that lather (only for development).
-#![allow(unreachable_code)]
-#![allow(unused)]
-
 use crate::base::BaseConfig;
 use crate::command;
 use crate::device;
@@ -79,12 +75,9 @@ impl Drop for SwapchainInfo {
     }
 }
 
-enum SurfaceSource {
-    Window {
-        window: raw_window_handle::RawWindowHandle,
-        display: raw_window_handle::RawDisplayHandle,
-    },
-    Deferred(Box<dyn FnOnce(&ash::Entry, &ash::Instance) -> Result<vk::SurfaceKHR, vk::Result>>),
+struct SurfaceSource {
+    window: raw_window_handle::RawWindowHandle,
+    display: raw_window_handle::RawDisplayHandle,
 }
 
 pub struct Swapchain {
@@ -106,45 +99,10 @@ pub struct Swapchain {
 impl Swapchain {
     pub fn from_window<W: HasDisplayHandle + HasWindowHandle>(window: &W) -> Swapchain {
         Swapchain {
-            surface: SurfaceSource::Window {
+            surface: SurfaceSource {
                 window: window.window_handle().unwrap().as_raw(),
                 display: window.display_handle().unwrap().as_raw(),
             },
-            min_image_count: 2,
-            image_formats: vec![
-                vk::Format::B8G8R8A8_SRGB,
-                vk::Format::R8G8B8A8_SRGB,
-                vk::Format::B8G8R8A8_UNORM,
-                vk::Format::R8G8B8A8_UNORM,
-            ],
-            image_sharing_mode: vk::SharingMode::EXCLUSIVE,
-            color_spaces: vec![vk::ColorSpaceKHR::SRGB_NONLINEAR],
-            present_modes: vec![
-                vk::PresentModeKHR::MAILBOX,
-                vk::PresentModeKHR::IMMEDIATE,
-                vk::PresentModeKHR::FIFO,
-                vk::PresentModeKHR::FIFO_RELAXED,
-            ],
-            image_usage_flags: vk::ImageUsageFlags::COLOR_ATTACHMENT,
-            surface_transform_flags: vk::SurfaceTransformFlagsKHR::IDENTITY,
-            composite_alpha_flags: vec![
-                vk::CompositeAlphaFlagsKHR::OPAQUE,
-                vk::CompositeAlphaFlagsKHR::PRE_MULTIPLIED,
-                vk::CompositeAlphaFlagsKHR::POST_MULTIPLIED,
-                vk::CompositeAlphaFlagsKHR::INHERIT,
-            ],
-            array_layers: 1,
-            extent: None,
-            clipped: true,
-        }
-    }
-
-    pub fn deferred<F>(f: F) -> Self
-    where
-        F: FnOnce(&ash::Entry, &ash::Instance) -> Result<vk::SurfaceKHR, vk::Result> + 'static,
-    {
-        Swapchain {
-            surface: SurfaceSource::Deferred(Box::new(f)),
             min_image_count: 2,
             image_formats: vec![
                 vk::Format::B8G8R8A8_SRGB,
@@ -242,11 +200,14 @@ impl Swapchain {
         let swapchain_loader = khr::swapchain::Device::new(instance, &device.device);
         let surface_loader = khr::surface::Instance::new(entry, instance);
 
-        let surface = match self.surface {
-            SurfaceSource::Window { window, display } => unsafe {
-                ash_window::create_surface(entry, instance, display, window, None)?
-            },
-            SurfaceSource::Deferred(fn_once) => (fn_once)(entry, instance)?,
+        let surface = unsafe {
+            ash_window::create_surface(
+                entry,
+                instance,
+                self.surface.display,
+                self.surface.window,
+                None,
+            )?
         };
 
         let surface_caps = unsafe {
@@ -386,7 +347,6 @@ impl Swapchain {
 }
 
 pub struct SwapchainRequirements {
-    // pub surface: vk::SurfaceKHR,
     pub formats: Vec<vk::Format>,
     pub color_spaces: Vec<vk::ColorSpaceKHR>,
     pub present_modes: Vec<vk::PresentModeKHR>,
@@ -421,15 +381,17 @@ where
     fn apply(self, config: BaseConfig<Present, Present, Absent, CG, CC, CT, CS, CP>) -> Self::Out {
         let mut device_constraints = config.device_constraints;
         device_constraints.required_swapchain = Some(SwapchainRequirements {
-            // surface: self.surface,
             formats: self.image_formats.clone(),
             color_spaces: self.color_spaces.clone(),
             present_modes: self.present_modes.clone(),
             image_usage: self.image_usage_flags,
         });
+        let mut instance_constraints = config.instance_constraints;
+        instance_constraints.required_surface = Some(self.surface.display);
 
         BaseConfig {
             instance: config.instance,
+            instance_constraints,
             swapchain: self,
             device: config.device,
             device_constraints,

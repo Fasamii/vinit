@@ -1,6 +1,5 @@
 use ash::vk;
-use raw_window_handle::HasRawDisplayHandle;
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 use std::sync::Once;
 use vinit::{
     base::{Base, BaseConfig},
@@ -645,7 +644,7 @@ fn test_api_version_1_3() {
 }
 
 #[test]
-#[allow(unused, clippy::diverging_sub_expression)]
+#[allow(unused, clippy::diverging_sub_expression, deprecated)]
 fn test_create_swapchain() {
     let event_loop = winit::event_loop::EventLoop::builder()
         .with_any_thread(true)
@@ -654,19 +653,8 @@ fn test_create_swapchain() {
     let window_atr = winit::window::WindowAttributes::default().with_visible(false);
     let window = event_loop.create_window(window_atr).unwrap();
 
-    let extensions =
-        ash_window::enumerate_required_extensions(window.raw_display_handle().unwrap()).unwrap();
-    let mut extensions: Vec<CString> = extensions
-        .iter()
-        .map(|&ptr| unsafe { CStr::from_ptr(ptr).to_owned() })
-        .collect();
-
     let base = BaseConfig::default()
-        .with(
-            instance::Instance::default()
-                .extensions(extensions)
-                .validation(validation_layers()),
-        )
+        .with(instance::Instance::default().validation(validation_layers()))
         .with(device::Device::default())
         .with(command::CommandPool::graphics())
         .with(swapchain::Swapchain::from_window(&window))

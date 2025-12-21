@@ -2,12 +2,12 @@ use crate::base::BaseConfig;
 use crate::command;
 use crate::device;
 use crate::families;
-use crate::Apply;
 use crate::swapchain;
+use crate::Apply;
 use crate::{Absent, Present, Store};
 use ash::vk;
 use core::fmt;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 
 /// Trait for creating Vulkan instances.
 ///
@@ -35,18 +35,30 @@ where
     /// # Errors
     ///
     /// Returns a Vulkan error if instance creation fails.
-    fn create(config: S::StoredConfig, entry: &ash::Entry) -> Result<S::StoredInfo, vk::Result>;
+    fn create(
+        config: S::StoredConfig,
+        constraints: InstanceConstraints,
+        entry: &ash::Entry,
+    ) -> Result<S::StoredInfo, vk::Result>;
 }
 
 impl CreateInstance<Absent> for Absent {
-    fn create(_config: (), _entry: &ash::Entry) -> Result<(), vk::Result> {
+    fn create(
+        _config: (),
+        _constraints: InstanceConstraints,
+        _entry: &ash::Entry,
+    ) -> Result<(), vk::Result> {
         Ok(())
     }
 }
 
 impl CreateInstance<Present> for Present {
-    fn create(config: Instance, entry: &ash::Entry) -> Result<InstanceInfo, vk::Result> {
-        config.create(entry)
+    fn create(
+        config: Instance,
+        constraints: InstanceConstraints,
+        entry: &ash::Entry,
+    ) -> Result<InstanceInfo, vk::Result> {
+        config.create(constraints, entry)
     }
 }
 
@@ -143,6 +155,23 @@ impl Instance {
         self
     }
 }
+impl Instance {
+    fn swapchain_extensions(&mut self, raw_display_handle: raw_window_handle::RawDisplayHandle) {
+        let require_extensions =
+            ash_window::enumerate_required_extensions(raw_display_handle).unwrap();
+
+        let mut require_extensions: Vec<CString> = require_extensions
+            .iter()
+            .map(|&ptr| unsafe { CStr::from_ptr(ptr).to_owned() })
+            .collect();
+
+        if let Some(extensions) = &mut self.extensions {
+            extensions.append(&mut require_extensions);
+        } else {
+            self.extensions = Some(require_extensions);
+        };
+    }
+}
 
 impl Instance {
     fn make_version(version: (u32, u32, u32)) -> u32 {
@@ -151,7 +180,15 @@ impl Instance {
 }
 
 impl Instance {
-    fn create(self, entry: &ash::Entry) -> Result<InstanceInfo, vk::Result> {
+    fn create(
+        mut self,
+        constraints: InstanceConstraints,
+        entry: &ash::Entry,
+    ) -> Result<InstanceInfo, vk::Result> {
+        if let Some(raw_display_handle) = constraints.required_surface {
+            self.swapchain_extensions(raw_display_handle);
+        }
+
         let app_info =
             vk::ApplicationInfo::default().api_version(Self::make_version(self.api_version));
 
@@ -199,6 +236,18 @@ impl Instance {
     }
 }
 
+pub struct InstanceConstraints {
+    pub required_surface: Option<raw_window_handle::RawDisplayHandle>,
+}
+
+impl Default for InstanceConstraints {
+    fn default() -> Self {
+        Self {
+            required_surface: None,
+        }
+    }
+}
+
 impl<D, S, CG, CC, CT, CS, CP> Apply<BaseConfig<Absent, D, S, CG, CC, CT, CS, CP>> for Instance
 where
     D: Store<device::Device, device::DeviceInfo>,
@@ -229,6 +278,7 @@ where
     fn apply(self, config: BaseConfig<Absent, D, S, CG, CC, CT, CS, CP>) -> Self::Out {
         BaseConfig {
             instance: self,
+            instance_constraints: config.instance_constraints,
             swapchain: config.swapchain,
             device: config.device,
             device_constraints: config.device_constraints,

@@ -35,9 +35,9 @@ where
     /// Returns a Vulkan error if device creation fails or no suitable device is found.
     fn create(
         config: D::StoredConfig,
+        constraints: DeviceConstraints,
         entry: &ash::Entry,
         instance: &I::StoredInfo,
-        constraints: DeviceConstraints,
     ) -> Result<D::StoredInfo, vk::Result>;
 }
 
@@ -47,9 +47,9 @@ where
 {
     fn create(
         _config: (),
+        _constraints: DeviceConstraints,
         _entry: &ash::Entry,
         _instance: &I::StoredInfo,
-        _constraints: DeviceConstraints,
     ) -> Result<(), vk::Result> {
         Ok(())
     }
@@ -58,9 +58,9 @@ where
 impl CreateDevice<Present, Present> for Present {
     fn create(
         config: Device,
+        constraints: DeviceConstraints,
         entry: &ash::Entry,
         instance: &instance::InstanceInfo,
-        constraints: DeviceConstraints,
     ) -> Result<DeviceInfo, vk::Result> {
         config.create(constraints, entry, &instance.0)
     }
@@ -410,8 +410,8 @@ impl PhysicalDeviceInfo {
 
     fn satisfies_swapchain(
         &self,
-        surface_loader: &khr::surface::Instance,
-        requirements: &swapchain::SwapchainRequirements,
+        _surface_loader: &khr::surface::Instance,
+        _requirements: &swapchain::SwapchainRequirements,
     ) -> bool {
         // TODO: try to make present support (queue families) on type level
         // let surface_caps = match unsafe {
@@ -555,6 +555,7 @@ where
     fn apply(self, config: BaseConfig<Present, Absent, S, CG, CC, CT, CS, CP>) -> Self::Out {
         BaseConfig {
             instance: config.instance,
+            instance_constraints: config.instance_constraints,
             swapchain: config.swapchain,
             device: self,
             device_constraints: config.device_constraints,

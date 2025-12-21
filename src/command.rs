@@ -315,6 +315,7 @@ where
         let graphics = config.pools.graphics.append_or_create(self);
         BaseConfig {
             instance: config.instance,
+            instance_constraints: config.instance_constraints,
             swapchain: config.swapchain,
             device: config.device,
             device_constraints: device::DeviceConstraints {
@@ -350,6 +351,7 @@ where
         let compute = config.pools.compute.append_or_create(self);
         BaseConfig {
             instance: config.instance,
+            instance_constraints: config.instance_constraints,
             swapchain: config.swapchain,
             device: config.device,
             device_constraints: device::DeviceConstraints {
@@ -385,6 +387,7 @@ where
         let transfer = config.pools.transfer.append_or_create(self);
         BaseConfig {
             instance: config.instance,
+            instance_constraints: config.instance_constraints,
             swapchain: config.swapchain,
             device: config.device,
             device_constraints: device::DeviceConstraints {
@@ -419,6 +422,7 @@ where
         let sparse = config.pools.sparse.append_or_create(self);
         BaseConfig {
             instance: config.instance,
+            instance_constraints: config.instance_constraints,
             swapchain: config.swapchain,
             device: config.device,
             device_constraints: device::DeviceConstraints {
@@ -453,6 +457,7 @@ where
         let protected = config.pools.protected.append_or_create(self);
         BaseConfig {
             instance: config.instance,
+            instance_constraints: config.instance_constraints,
             swapchain: config.swapchain,
             device: config.device,
             device_constraints: device::DeviceConstraints {

@@ -103,6 +103,7 @@ where
     pub device: FieldConfig<D, device::Device, device::DeviceInfo>,
     pub device_constraints: device::DeviceConstraints,
     pub instance: FieldConfig<I, instance::Instance, instance::InstanceInfo>,
+    pub instance_constraints: instance::InstanceConstraints,
 }
 
 impl Default for BaseConfig<Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent> {
@@ -113,6 +114,7 @@ impl Default for BaseConfig<Absent, Absent, Absent, Absent, Absent, Absent, Abse
             device: (),
             device_constraints: Default::default(),
             instance: (),
+            instance_constraints: Default::default(),
         }
     }
 }
@@ -154,14 +156,14 @@ where
     /// # Errors
     ///
     /// Returns a Vulkan error if any resource creation fails. Common errors include:
-    /// - `ERROR_INITIALIZATION_FAILED` - Failed to load Vulkan entry point
+    /// - `ERROR_INITIALIZATION_FAILED` - Failed to load Vulkan object
     /// - `ERROR_FEATURE_NOT_PRESENT` - No suitable device found
     #[allow(clippy::type_complexity)]
     pub fn build(self) -> Result<Base<I, D, S, CG, CC, CT, CS, CP>, vk::Result> {
         let entry =
             unsafe { ash::Entry::load().map_err(|_| vk::Result::ERROR_INITIALIZATION_FAILED)? };
-        let instance = I::create(self.instance, &entry)?;
-        let device = D::create(self.device, &entry, &instance, self.device_constraints)?;
+        let instance = I::create(self.instance, self.instance_constraints, &entry)?;
+        let device = D::create(self.device, self.device_constraints, &entry, &instance)?;
         let pools_graphics = CG::create(self.pools.graphics, &device)?;
         let pools_compute = CC::create(self.pools.compute, &device)?;
         let pools_transfer = CT::create(self.pools.transfer, &device)?;
