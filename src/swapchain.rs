@@ -240,13 +240,13 @@ impl Swapchain {
             .min_by_key(|(f_idx, c_idx, _)| (*f_idx, *c_idx))
             .map(|(_, _, sf)| sf)
             .ok_or(vk::Result::ERROR_FORMAT_NOT_SUPPORTED)?;
-        // TODO: make that return the mode that contains most specified modes
+
         let present_mode = self
             .present_modes
             .iter()
             .find(|&&mode| present_modes.contains(&mode))
             .copied()
-            .expect("make that error propagate");
+            .ok_or(vk::Result::ERROR_INITIALIZATION_FAILED)?;
 
         let extent = if let Some(fixed_extent) = self.extent {
             vk::Extent2D {
@@ -265,21 +265,36 @@ impl Swapchain {
             surface_caps.min_image_extent
         };
 
-        // TODO: consider returning error instead of using .max()
+        if self.min_image_count < surface_caps.min_image_count {
+            log::warn!(
+                "Requested min_image_count ({}) is below device minimum ({}), clamping up",
+                self.min_image_count,
+                surface_caps.min_image_count
+            );
+        }
         let mut image_count = self.min_image_count.max(surface_caps.min_image_count);
         if surface_caps.max_image_count > 0 {
-            // TODO: same here consider returning error instead of using .min() or allow user to
-            // specify allowed clamp
+            if image_count > surface_caps.max_image_count {
+                log::warn!(
+                    "Requested image_count ({}) exceeds device maximum ({}), clamping down",
+                    image_count,
+                    surface_caps.max_image_count
+                );
+            }
             image_count = image_count.min(surface_caps.max_image_count);
         }
 
-        // TODO: Also consider returning error instead
         let pre_transform = if surface_caps
             .supported_transforms
             .contains(self.surface_transform_flags)
         {
             self.surface_transform_flags
         } else {
+            log::warn!(
+                "Requested surface transform {:?} not supported, falling back to {:?}",
+                self.surface_transform_flags,
+                surface_caps.current_transform
+            );
             surface_caps.current_transform
         };
 
